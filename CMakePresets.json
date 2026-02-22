@@ -1,0 +1,49 @@
+{
+	"version": 3,
+	"configurePresets": [
+		{
+			"name": "debug",
+			"displayName": "Debug",
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/build/Debug",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		},
+		{
+			"name": "release",
+			"displayName": "Release",
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/build/Release",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release"
+			}
+		},
+		{
+			"name": "relwithdebinfo",
+			"displayName": "RelWithDebInfo",
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/build/RelWithDebInfo",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "RelWithDebInfo"
+			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "debug",
+			"configurePreset": "debug",
+			"targets": [ "Therminal" ]
+		},
+		{
+			"name": "release",
+			"configurePreset": "release",
+			"targets": [ "Therminal" ]
+		},
+		{
+			"name": "relwithdebinfo",
+			"configurePreset": "relwithdebinfo",
+			"targets": [ "Therminal" ]
+		}
+	]
+}

@@ -1,0 +1,6 @@
+# ninja log v5
+1	13	0	/home/szymek/Source/Therminal/build/CMakeFiles/cmake.verify_globs	3f332b64f2d5d4cd
+14	253	1771794666296907073	CMakeFiles/Therminal.dir/src/Main.cpp.o	66c74ef3c4c7e600
+253	322	1771794666364908264	Therminal	84bbe7929095bf64
+1	18	0	/home/szymek/Source/Therminal/build/CMakeFiles/cmake.verify_globs	3f332b64f2d5d4cd
+19	133	1771794708142635773	/home/szymek/Source/Therminal/bin/Therminal/Debug/Therminal	929a8bc7e77d51ae

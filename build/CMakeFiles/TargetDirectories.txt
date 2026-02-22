@@ -1,0 +1,3 @@
+/home/szymek/Source/Therminal/build/CMakeFiles/Therminal.dir
+/home/szymek/Source/Therminal/build/CMakeFiles/edit_cache.dir
+/home/szymek/Source/Therminal/build/CMakeFiles/rebuild_cache.dir
