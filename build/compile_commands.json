@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/home/szymek/Source/Therminal/build",
-  "command": "/usr/bin/g++ -DDEBUG -DTHR_PLATFORM_LINUX -I/home/szymek/Source/Therminal/src  -fms-extensions -g -Og -O0 -fno-omit-frame-pointer -fsanitize=address -Wall -Wextra -Wpedantic -Wno-unused-function -Wno-shift-count-negative -g -std=gnu++17 -o CMakeFiles/Therminal.dir/src/Main.cpp.o -c /home/szymek/Source/Therminal/src/Main.cpp",
-  "file": "/home/szymek/Source/Therminal/src/Main.cpp",
-  "output": "CMakeFiles/Therminal.dir/src/Main.cpp.o"
-}
-]
