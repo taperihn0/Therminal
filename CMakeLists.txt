@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project(Therminal CXX)
+project(Therminal C CXX)
 
 if (NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Debug
@@ -18,6 +18,7 @@ message("CMake build type: ${CMAKE_BUILD_TYPE}")
 
 file(GLOB SOURCES CONFIGURE_DEPENDS
 	"${CMAKE_SOURCE_DIR}/src/*.cpp"
+	"${CMAKE_SOURCE_DIR}/src/core/*.c"
 )
 
 if (MSVC)
@@ -28,6 +29,7 @@ else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fms-extensions")
 endif()
 
+message(STATUS "Sources found: ${SOURCES}")
 add_executable(Therminal ${SOURCES})
 
 target_compile_definitions(Therminal PUBLIC 
@@ -108,11 +110,11 @@ option(THR_ENABLE_SIMD_AVX2   "Enable AVX2 optimizations"      OFF)
 option(THR_ENABLE_SIMD_AVX512 "Enable AVX2 optimizations"      OFF)
 option(THR_FORCE_PURE         "Force 'pure' instructions"	   OFF)
 
-if (FORCE_PURE)
+if (THR_FORCE_PURE)
 	target_compile_definitions(Therminal PUBLIC THR_FORCE_PURE)
 
 	message(STATUS "SIMD instructions disabled")
-elseif (ENABLE_SIMD_SSE2)
+elseif (THR_ENABLE_SIMD_SSE2)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_SSE2)
 
 	if (MSVC)
@@ -122,7 +124,7 @@ elseif (ENABLE_SIMD_SSE2)
 	endif()
 
 	message(STATUS "SIMD instructions enabled - SSE2 instruction set")
-elseif (ENABLE_SIMD_SSE3)
+elseif (THR_ENABLE_SIMD_SSE3)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_SSE3)
 
 	if (MSVC)
@@ -132,7 +134,7 @@ elseif (ENABLE_SIMD_SSE3)
 	endif()
 
 	message(STATUS "SIMD instructions enabled - SSE3 instruction set")
-elseif (ENABLE_SIMD_SSSE3)
+elseif (THR_ENABLE_SIMD_SSSE3)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_SSSE3)
 
 	if (MSVC)
@@ -142,7 +144,7 @@ elseif (ENABLE_SIMD_SSSE3)
 	endif()
 
 	message(STATUS "SIMD instructions enabled - SSSE3 instruction set")
-elseif (ENABLE_SIMD_SSE4_1)
+elseif (THR_ENABLE_SIMD_SSE4_1)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_SSE4_1)
 
 	if (MSVC)
@@ -152,7 +154,7 @@ elseif (ENABLE_SIMD_SSE4_1)
 	endif()
 
 	message(STATUS "SIMD instructions enabled - SSE4.1 instruction set")
-elseif (ENABLE_SIMD_SSE4_2)
+elseif (THR_ENABLE_SIMD_SSE4_2)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_SSE4_2)
 
 	if (MSVC)
@@ -162,7 +164,7 @@ elseif (ENABLE_SIMD_SSE4_2)
 	endif()
 
 	message(STATUS "SIMD instructions enabled - SSE4.2 instruction set")
-elseif (ENABLE_SIMD_AVX)
+elseif (THR_ENABLE_SIMD_AVX)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_AVX)
 
 	if (MSVC)
@@ -172,7 +174,7 @@ elseif (ENABLE_SIMD_AVX)
 	endif()
 
 	message(STATUS "SIMD instructions enabled - AVX instruction set")
-elseif (ENABLE_SIMD_AVX2)
+elseif (THR_ENABLE_SIMD_AVX2)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_AVX2)
 
 	if (MSVC)
@@ -182,7 +184,7 @@ elseif (ENABLE_SIMD_AVX2)
 	endif()
 
 	message(STATUS "SIMD instructions enabled - AVX2 instruction set")
-elseif (ENABLE_SIMD_AVX512)
+elseif (THR_ENABLE_SIMD_AVX512)
 	target_compile_definitions(Therminal PUBLIC THR_SIMD_AVX512)
 
 	if (MSVC)
