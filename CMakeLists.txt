@@ -16,9 +16,9 @@ endif ()
 
 message("CMake build type: ${CMAKE_BUILD_TYPE}")
 
-file(GLOB SOURCES CONFIGURE_DEPENDS
-	"${CMAKE_SOURCE_DIR}/src/*.cpp"
-	"${CMAKE_SOURCE_DIR}/src/core/*.c"
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
+	"${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src/*.cpp"
+	"${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src/core/*.c"
 )
 
 if (MSVC)
@@ -32,6 +32,22 @@ endif()
 message(STATUS "Sources found: ${SOURCES}")
 add_executable(Therminal ${SOURCES})
 
+# Add GLFW subdirectory #
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS 	   OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL 		   OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/vendor/glfw)
+
+# Add GLAD subdirectory #
+add_subdirectory(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/vendor/glad)
+
+target_link_libraries(Therminal PUBLIC 
+	glfw	
+	glad
+)
+
 target_compile_definitions(Therminal PUBLIC 
 	$<$<CONFIG:Debug>:THR_DEBUG>
 	$<$<CONFIG:Release>:THR_RELEASE>
@@ -43,7 +59,8 @@ set_target_properties(Therminal PROPERTIES
 )
 
 target_include_directories(Therminal PUBLIC
-	"${CMAKE_SOURCE_DIR}/src"
+	"${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src"
+	"${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/vendor/glfw/include"
 )
 
 # Platform detection
@@ -63,7 +80,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer")
 
 		if (NOT BUILD_UTILS)
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-common")
 		endif ()
 	else ()
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Od")

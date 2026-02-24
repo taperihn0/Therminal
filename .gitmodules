@@ -1,0 +1,3 @@
+[submodule "Therminal/vendor/glfw"]
+	path = Therminal/vendor/glfw
+	url = https://github.com/glfw/glfw.git
