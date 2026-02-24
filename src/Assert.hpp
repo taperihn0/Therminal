@@ -17,6 +17,7 @@ THR_INLINE bool __thrfailedAssertion(const char* file, const char* text, int lin
 {
 	std::cerr << "\nAssertion failed: " << text << " - file " << file << " line " << line << std::endl;
 	THR_DEBUG_BREAK();
+	exit(-1);
 	return true;
 }
 
