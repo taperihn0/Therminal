@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Common.hpp"
-#include <any>
 
 namespace Thr
 {
