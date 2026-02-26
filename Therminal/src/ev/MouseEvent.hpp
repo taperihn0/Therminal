@@ -38,7 +38,7 @@ public:
 
    struct MouseButtonParams;
    
-   THR_INLINE MouseButtonParams getMouseButton() const;
+   THR_INLINE MouseButtonParams getMouseButtonParams() const;
    
    struct MouseButtonParams
    {
@@ -57,7 +57,7 @@ THR_INLINE MouseButtonEvent<MouseButtonEvCode>::MouseButtonEvent(int button, int
 
 template <EventCode MouseButtonEvCode>
 THR_INLINE typename MouseButtonEvent<MouseButtonEvCode>::MouseButtonParams 
-MouseButtonEvent<MouseButtonEvCode>::getMouseButton() const 
+MouseButtonEvent<MouseButtonEvCode>::getMouseButtonParams() const 
 {
    return _params;
 }
@@ -70,8 +70,8 @@ class MouseMoveEvent : public MouseEvent
 public:
    struct MouseMoveParams 
    {
-      double xpos;
-      double ypos;
+      double x;
+      double y;
    };
 
    THR_INLINE MouseMoveEvent(double x, double y);
@@ -100,8 +100,8 @@ public:
 
    struct MouseScrollParams 
    {
-      double xoffset;
-      double yoffset;
+      double xoff;
+      double yoff;
    };
 
 private:

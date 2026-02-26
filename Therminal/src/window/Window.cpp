@@ -7,6 +7,11 @@ namespace Thr
 
 Window* Window::_glob_bind = nullptr;
 
+Window::_CallbackData::_CallbackData(Window* win)
+   : window(win)
+   , callbacks(std::make_shared<_EventCallbacks>())
+{}
+
 Window::Window()
    : _width(-1)
    , _height(-1)
@@ -17,8 +22,8 @@ Window::Window()
    , _close(false)
    , _native_window(nullptr)
    , _input(nullptr)
+   , _user_callback_data(std::make_unique<_CallbackData>(this))
    //, _swapchain(nullptr)
-   //, _callback_ptrs({ this, nullptr })
 {}
 
 Window::Window(uint width, uint height, const std::string& title)
@@ -99,8 +104,8 @@ bool Window::init(uint width, uint height, const std::string& title)
    glfwMakeContextCurrent(_native_window);
 
    // _callback_ptrs lifetime is same as the lifetime of *this object.
-   //void* data = reinterpret_cast<void*>(&_callback_ptrs);
-   //glfwSetWindowUserPointer(_native_window, data);
+   void* user_data = reinterpret_cast<void*>(_user_callback_data.get());
+   glfwSetWindowUserPointer(_native_window, user_data);
 
    // initialize render state
    // TODO: make it configurable
@@ -118,6 +123,9 @@ bool Window::init(uint width, uint height, const std::string& title)
 
    // We can now allocate our input handler queue
    _input = new WinInputQueue;
+
+   // setup event callbacks pointers
+   setEventCallbacks();
 
    return true;
 }
@@ -141,6 +149,279 @@ bool Window::isSuspended() const
    return _suspended;
 }
 
+void Window::__setWidth(uint width)
+{
+   THR_ASSERT(_initialized);
+   _width = width;
+}
+
+void Window::__setHeight(uint height)
+{
+   THR_ASSERT(_initialized);
+   _height = height;
+}
+
+void Window::__setFocus(bool value)
+{
+   THR_ASSERT(_initialized);
+   _focus = value;
+}
+
+void Window::__setSuspended(bool value)
+{
+   THR_ASSERT(_initialized);
+   _suspended = value;
+}
+
+void Window::__setClose(bool value)
+{
+   THR_ASSERT(_initialized);
+   _close = value;
+}
+
+void Window::setErrorCallback(ErrorCallback callbck)
+{
+   _user_callback_data->callbacks->error_callback = callbck;
+}
+
+void Window::setWindowResizeCallback(WindowResizeCallback callbck)
+{
+   _user_callback_data->callbacks->window_resize_callback = callbck;
+}
+
+void Window::setWindowMoveCallback(WindowMoveCallback callbck)
+{
+   _user_callback_data->callbacks->window_move_callback = callbck;
+}
+
+void Window::setWindowFocusCallback(WindowFocusCallback callbck)
+{
+   _user_callback_data->callbacks->window_focus_callback = callbck;
+}
+
+void Window::setWindowCloseCallback(WindowCloseCallback callbck)
+{
+   _user_callback_data->callbacks->window_close_callback = callbck;
+}
+
+void Window::setKeyPressCallback(KeyPressCallback callbck)
+{
+   _user_callback_data->callbacks->key_press_callback = callbck;
+}
+
+void Window::setKeyReleaseCallback(KeyReleaseCallback callbck)
+{
+   _user_callback_data->callbacks->key_release_callback = callbck;
+}
+
+void Window::setKeyRepeatCallback(KeyRepeatCallback callbck)
+{
+   _user_callback_data->callbacks->key_repeat_callback = callbck;
+}
+
+void Window::setKeyTypeCallback(KeyTypeCallback callbck)
+{
+   _user_callback_data->callbacks->key_type_callback = callbck;
+}
+
+void Window::setMousePressCallback(MousePressCallback callbck) 
+{
+   _user_callback_data->callbacks->mouse_press_callback = callbck;
+}
+
+void Window::setMouseReleaseCallback(MouseReleaseCallback callbck) 
+{
+   _user_callback_data->callbacks->mouse_release_callback = callbck;
+}
+
+void Window::setMouseMoveCallback(MouseMoveCallback callbck) 
+{
+   _user_callback_data->callbacks->mouse_move_callback = callbck;
+}
+
+void Window::setMouseScrollCallback(MouseScrollCallback callbck) 
+{
+   _user_callback_data->callbacks->mouse_scroll_callback = callbck;
+}
+
+void Window::setEventCallbacks()
+{
+   THR_ASSERT(_initialized);
+   
+   glfwSetErrorCallback(
+      [](int code, const char* desc)
+      {
+         ErrorEvent ev(code, desc);
+         _EventCallbacks::error_callback(ev);
+      }
+   );
+
+   glfwSetWindowSizeCallback(_native_window,
+      [](GLFWwindow* platform_native_window, int width, int height)
+      {
+         WindowResizeEvent ev(width, height);
+
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         Window* window = data->window;
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         window->__setWidth(width);
+         window->__setHeight(height);
+
+         const bool suspend = (!width && !height);
+         window->__setSuspended(suspend);
+         
+         if (suspend) {
+            THR_LOG_INFO("Window suspended");
+         }
+
+         //bool status = Render::windowResize(width, height);
+         //if (!status)
+         //   THR_CORE_LOG_FATAL_FULL_INFO("Got error code from resize code!");
+
+         callbacks->window_resize_callback(ev);
+      }
+   );
+   
+   glfwSetWindowPosCallback(_native_window, 
+      [](GLFWwindow* platform_native_window, int xpos, int ypos)
+      {
+         WindowMoveEvent ev(xpos, ypos);
+
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         callbacks->window_move_callback(ev);
+      }
+   );
+   
+   glfwSetWindowFocusCallback(_native_window, 
+      [](GLFWwindow* platform_native_window, int value)
+      {
+         WindowFocusEvent ev(value);
+         
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         Window* window = data->window;
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         window->__setFocus(value);
+
+         callbacks->window_focus_callback(ev);
+      }
+   );
+
+   glfwSetWindowCloseCallback(_native_window, 
+      [](GLFWwindow* platform_native_window)
+      {         
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         Window* window = data->window;
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         window->__setClose(true);
+
+         callbacks->window_close_callback();
+      }
+   );
+
+   glfwSetKeyCallback(_native_window, 
+      [](GLFWwindow* platform_native_window, int key, THR_UNUSED int scancode, int action, THR_UNUSED int mods)
+      {
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         switch (action)
+         {
+         case GLFW_PRESS:
+         {
+            KeyPressEvent ev(key);
+            callbacks->key_press_callback(ev);
+            break;
+         }
+         case GLFW_REPEAT:
+         {
+            KeyRepeatEvent ev(key);
+            callbacks->key_repeat_callback(ev);
+            break;
+         }
+         case GLFW_RELEASE:
+         {
+            KeyReleaseEvent ev(key);
+            callbacks->key_release_callback(ev);
+            break;
+         }
+         default: break;
+         }
+      }
+   );
+
+   glfwSetCharCallback(_native_window, 
+      [](GLFWwindow* platform_native_window, unsigned int codepoint)
+      {
+         KeyTypeEvent ev(codepoint);
+
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         THR_UNUSED Window* window = data->window;
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         callbacks->key_type_callback(ev);
+      }
+   );
+
+   glfwSetMouseButtonCallback(_native_window, 
+      [](GLFWwindow* platform_native_window, int button, int action, int mods)
+      {
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         switch (action)
+         {
+         case GLFW_PRESS:
+         {
+            MousePressEvent ev(button, mods);
+            callbacks->mouse_press_callback(ev);
+            break;
+         }
+         case GLFW_REPEAT:
+         {
+            // Repeat action for mouse button currently 
+            // not supported by GLFW nor Pheasant 
+            break;
+         }
+         case GLFW_RELEASE:
+         {
+            MouseReleaseEvent ev(button, mods);
+            callbacks->mouse_release_callback(ev);
+            break;
+         }
+         default: break;
+         }
+      }
+   );
+
+   glfwSetCursorPosCallback(_native_window, 
+      [](GLFWwindow* platform_native_window, double xpos, double ypos)
+      {
+         MouseMoveEvent ev(xpos, ypos);
+
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         callbacks->mouse_move_callback(ev);
+      }
+   );
+
+   glfwSetScrollCallback(_native_window, 
+      [](GLFWwindow* platform_native_window, double xoffset, double yoffset)
+      {
+         MouseScrollEvent ev(xoffset, yoffset);
+         
+         Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+         std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+         callbacks->mouse_scroll_callback(ev);
+      }
+   );
+}
 
 } // namespace Thr
 

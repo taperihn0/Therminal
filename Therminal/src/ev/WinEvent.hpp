@@ -38,8 +38,8 @@ public:
    
    struct WindowSizeParams
    {
-      int winheight;
-      int winwidth;
+      int height;
+      int width;
    };
 
 private:
@@ -69,8 +69,8 @@ public:
 
    struct WindowPosParams 
    {
-      int winx;
-      int winy;
+      int x;
+      int y;
    };
 
 private:

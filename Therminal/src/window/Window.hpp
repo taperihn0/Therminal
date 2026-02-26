@@ -2,6 +2,7 @@
 
 #include "Common.hpp"
 #include "ev/Event.hpp"
+#include "memory/Memory.hpp"
 #include <functional>
 #include <any>
 
@@ -15,36 +16,37 @@ using ErrorCallback         = std::function<void(ErrorEvent)>;
 using WindowResizeCallback  = std::function<void(WindowResizeEvent)>;
 using WindowMoveCallback    = std::function<void(WindowMoveEvent)>;
 using WindowFocusCallback   = std::function<void(WindowFocusEvent)>;
-using WindowCloseCallback   = std::function<void(WindowCloseEvent)>;
+using WindowCloseCallback   = std::function<void()>;
 using KeyPressCallback      = std::function<void(KeyPressEvent)>;
 using KeyReleaseCallback    = std::function<void(KeyReleaseEvent)>;
-using KeyRepeateCallback    = std::function<void(KeyRepeatEvent)>;
+using KeyRepeatCallback     = std::function<void(KeyRepeatEvent)>;
 using KeyTypeCallback       = std::function<void(KeyTypeEvent)>;
 using MousePressCallback    = std::function<void(MousePressEvent)>;
 using MouseReleaseCallback  = std::function<void(MouseReleaseEvent)>;
 using MouseMoveCallback     = std::function<void(MouseMoveEvent)>;
 using MouseScrollCallback   = std::function<void(MouseScrollEvent)>;
 
-THR_INTERNAL void __defaultEventCallback(THR_UNUSED std::any) {}
+THR_INTERNAL void __defaultDoNothing(THR_UNUSED std::any) {}
+THR_INTERNAL void __defaultDoNothingZ() {}
 
-struct EventCallbacks
+struct _EventCallbacks
 {
-   ErrorCallback         error_callback         = __defaultEventCallback;
+   inline static ErrorCallback  error_callback  = __defaultDoNothing;
 
-   WindowResizeCallback  window_resize_callback = __defaultEventCallback;
-   WindowMoveCallback    window_move_callback   = __defaultEventCallback;
-   WindowFocusCallback   window_focus_callback  = __defaultEventCallback;
-   WindowCloseCallback   window_close_callback  = __defaultEventCallback;
+   WindowResizeCallback  window_resize_callback = __defaultDoNothing;
+   WindowMoveCallback    window_move_callback   = __defaultDoNothing;
+   WindowFocusCallback   window_focus_callback  = __defaultDoNothing;
+   WindowCloseCallback   window_close_callback  = __defaultDoNothingZ;
 
-   KeyPressCallback      key_press_callback     = __defaultEventCallback;
-   KeyReleaseCallback    key_release_callback   = __defaultEventCallback;
-   KeyRepeateCallback    key_repeat_callback    = __defaultEventCallback;
-   KeyTypeCallback       key_type_callback      = __defaultEventCallback;
+   KeyPressCallback      key_press_callback     = __defaultDoNothing;
+   KeyReleaseCallback    key_release_callback   = __defaultDoNothing;
+   KeyRepeatCallback     key_repeat_callback    = __defaultDoNothing;
+   KeyTypeCallback       key_type_callback      = __defaultDoNothing;
 
-   MousePressCallback    mouse_press_callback   = __defaultEventCallback;
-   MouseReleaseCallback  mouse_release_callback = __defaultEventCallback;
-   MouseMoveCallback     mouse_move_callback    = __defaultEventCallback;
-   MouseScrollCallback   mouse_scroll_callback  = __defaultEventCallback;
+   MousePressCallback    mouse_press_callback   = __defaultDoNothing;
+   MouseReleaseCallback  mouse_release_callback = __defaultDoNothing;
+   MouseMoveCallback     mouse_move_callback    = __defaultDoNothing;
+   MouseScrollCallback   mouse_scroll_callback  = __defaultDoNothing;
 };
 
 THR_DECLARE class WinInputQueue;
@@ -70,17 +72,56 @@ public:
    void update();
    bool isOpen() const;
    bool isSuspended() const;
+   
+   /* __setWidth / __setHeight methods do not really *resize* the window, but
+   *  rather change internal state fields to match the actual size.
+   *  Used internally by callbacks function on resize event.
+   */
+   void __setWidth(uint width);
+   void __setHeight(uint height);
+   /* Internal usage method.
+   *  For more explanations, see Phs::Window::__setWidth and Phs::Window::__setHeight.
+   */
+   void __setFocus(bool value);
+   /* Internal usage method.
+   *  For more explanations on internal usage, see Phs::Window::__setWidth and Phs::Window::__setHeight.
+   */
+   void __setSuspended(bool value);
+   /* Internal usage method.
+   *  For more explanations on internal usage, see Phs::Window::__setWidth and Phs::Window::__setHeight.
+   */
+   void __setClose(bool value);
+
+   void setErrorCallback(ErrorCallback callbck);
+
+   void setWindowResizeCallback(WindowResizeCallback callbck);
+   void setWindowMoveCallback(WindowMoveCallback callbck);
+   void setWindowFocusCallback(WindowFocusCallback callbck);
+   void setWindowCloseCallback(WindowCloseCallback callbck);
+   
+   void setKeyPressCallback(KeyPressCallback callbck);
+   void setKeyReleaseCallback(KeyReleaseCallback callbck);
+   void setKeyRepeatCallback(KeyRepeatCallback callbck);
+   void setKeyTypeCallback(KeyTypeCallback callbck);
+   
+   void setMousePressCallback(MousePressCallback callbck);
+   void setMouseReleaseCallback(MouseReleaseCallback callbck);
+   void setMouseMoveCallback(MouseMoveCallback callbck);
+   void setMouseScrollCallback(MouseScrollCallback callbck);
+
+private:
+   void setEventCallbacks();
 
    /* Internal data for callbacks.
-   *  window pointer should be set to this.
    */
-   struct __CallbackData
+   struct _CallbackData
    {
-      Window* const   window;
-      EventCallbacks* callbacks;
+      _CallbackData(Window* win);
+
+      Window* const                    window;
+      std::shared_ptr<_EventCallbacks> callbacks;
    };
-   
-private:
+
    static constexpr std::string_view  _DefaultWindowTitle  = "Title";
 
    int                                _width;
@@ -92,9 +133,9 @@ private:
    bool                               _close;
    GLFWwindow*                        _native_window;
    WinInputQueue*                     _input;
+   std::unique_ptr<_CallbackData>     _user_callback_data;
 
    //std::unique_ptr<PlatformSwapchain> _swapchain;
-   //__CallbackData                     _callback_ptrs;
 
    /* We're operating on one window only.
    *  We check if we've bounded another window on new Window initialization.

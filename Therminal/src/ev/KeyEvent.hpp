@@ -40,7 +40,7 @@ public:
 
    struct KeyButtonParams 
    {
-      char16_t keycode;
+      int keycode;
    };
 
    THR_INLINE KeyButtonParams getKeyParams() const;

@@ -120,8 +120,32 @@ THR_INLINE Event::Event(EventCode evcode, EventCategory evcat)
 class ErrorEvent : public Event 
 {
 public:
-   THR_INLINE ErrorEvent() = default;
+   THR_INLINE ErrorEvent(int code, const char* desc);
    THR_INLINE ~ErrorEvent() = default;
+
+   struct ErrorParams;
+
+   THR_INLINE ErrorParams getErrorParams() const;
+
+   struct ErrorParams
+   {
+      int         code;
+      const char* desc;
+   };
+   
+private:
+   ErrorParams _params;
 };
+
+THR_INLINE ErrorEvent::ErrorEvent(int code, const char* desc)
+   : Event(EV_ERROR, EV_CATEGORY_ERROR)
+   , _params { code, desc }
+{}
+
+THR_INLINE ErrorEvent::ErrorParams
+ErrorEvent::getErrorParams() const 
+{
+   return _params;
+}
 
 } // namespace Thr

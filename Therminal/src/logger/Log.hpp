@@ -77,7 +77,7 @@ private:
 
    static constexpr std::string_view _ANSIColor[MSG_MAX] =
    {
-        _ANSIColorWhite,
+        _ANSIColorBrightGreen,
         _ANSIColorBrightBlue,
         _ANSIColorBrightYellow,
         _ANSIColorRed,
