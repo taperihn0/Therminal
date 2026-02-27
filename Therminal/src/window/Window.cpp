@@ -329,22 +329,18 @@ void Window::setEventCallbacks()
          Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
          std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
 
-         switch (action)
-         {
-         case GLFW_PRESS:
-         {
+         switch (action) {
+         case GLFW_PRESS: {
             KeyPressEvent ev(key);
             callbacks->key_press_callback(ev);
             break;
          }
-         case GLFW_REPEAT:
-         {
+         case GLFW_REPEAT: {
             KeyRepeatEvent ev(key);
             callbacks->key_repeat_callback(ev);
             break;
          }
-         case GLFW_RELEASE:
-         {
+         case GLFW_RELEASE: {
             KeyReleaseEvent ev(key);
             callbacks->key_release_callback(ev);
             break;
@@ -373,22 +369,18 @@ void Window::setEventCallbacks()
          Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
          std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
 
-         switch (action)
-         {
-         case GLFW_PRESS:
-         {
+         switch (action) {
+         case GLFW_PRESS: {
             MousePressEvent ev(button, mods);
             callbacks->mouse_press_callback(ev);
             break;
          }
-         case GLFW_REPEAT:
-         {
+         case GLFW_REPEAT: {
             // Repeat action for mouse button currently 
             // not supported by GLFW nor Pheasant 
             break;
          }
-         case GLFW_RELEASE:
-         {
+         case GLFW_RELEASE: {
             MouseReleaseEvent ev(button, mods);
             callbacks->mouse_release_callback(ev);
             break;

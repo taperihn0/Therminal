@@ -27,7 +27,7 @@
 #  define THR_INTERNAL            inline
 #elif defined(__GNUG__)
 #  define THR_INLINE			       inline
-#  define THR_FORCEINLINE		    __attribute__((always_inline)) inline
+#  define THR_FORCEINLINE		    __attribute__((always_inline))
 #  define THR_LAMBDA_FORCEINLINE  __attribute__((always_inline))
 #  define THR_RESTRICT            __restrict__
 #  define THR_NODISCARD           [[nodiscard]]
