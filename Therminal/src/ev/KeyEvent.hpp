@@ -35,12 +35,14 @@ public:
                      KeyEvCode == EV_KEY_REPEATED ||
                      KeyEvCode == EV_KEY_TYPED);
 
-   THR_INLINE KeyButtonEvent(int keycode);
+   THR_INLINE KeyButtonEvent(int keycode, int scancode, int mods);
    THR_INLINE ~KeyButtonEvent() = default;
 
    struct KeyButtonParams 
    {
       int keycode;
+      int scancode;
+      int mods;
    };
 
    THR_INLINE KeyButtonParams getKeyParams() const;
@@ -50,9 +52,9 @@ private:
 };
 
 template <EventCode KeyEvCode>
-THR_INLINE KeyButtonEvent<KeyEvCode>::KeyButtonEvent(int keycode)
+THR_INLINE KeyButtonEvent<KeyEvCode>::KeyButtonEvent(int keycode, int scancode, int mods)
    : KeyEvent(KeyEvCode)
-   , _params { keycode }
+   , _params { keycode, scancode, mods }
 {}
 
 template <EventCode KeyEvCode>

@@ -6,63 +6,84 @@ namespace Thr
 template <typename T>
 CircularBuff<T>::CircularBuff(size_t cnt)
    : _cnt(cnt)
-   , _beg(0)
-   , _end(0)
-   , _full(false)
+   , _read_idx(0)
+   , _write_idx(0)
 {
+   THR_HARD_ASSERT_LOG(_cnt > 0, "Invalid buffer size");
+   THR_HARD_ASSERT_LOG(_cnt <= _CntLimit, "Too much elements queried");
    allocBuffer();
 }
 
 template <typename T>
-THR_INLINE size_t CircularBuff<T>::getBegin() const
+CircularBuff<T>::~CircularBuff()
 {
-   return _beg;
+   alignedFree(_buff);
 }
 
 template <typename T>
-THR_INLINE size_t CircularBuff<T>::getCurrentIdx() const
+THR_INLINE size_t CircularBuff<T>::getReadIdx() const
 {
-   return _end;
+   return _read_idx;
+}
+
+template <typename T>
+THR_INLINE size_t CircularBuff<T>::getWriteIdx() const
+{
+   return _write_idx;
+}
+
+template <typename T>
+THR_INLINE bool CircularBuff<T>::isFull() const
+{
+   const size_t next_write_idx = (_write_idx + 1) % _cnt;
+   return next_write_idx == _read_idx;
+}
+
+template <typename T>
+THR_INLINE bool CircularBuff<T>::isEmpty() const
+{
+   return _write_idx == _read_idx;
 }
 
 template <typename T>
 THR_INLINE void CircularBuff<T>::put(T&& el)
 {
-   const size_t write_idx = (_end + 1) % _cnt;
-
-   if (_end + 1 == _cnt) { // reached end of the buffer
-      _full = true;
-   }
-
-   if (_full) { // if we're full, we need to shift beginning
-      _beg = (_beg + 1) % _cnt;
-   }
+   advanceWriteIdx();
    
-   T* const ptr = _buff.get();
-   
+   T* const ptr = _buff;
    THR_HARD_ASSERT(ptr != nullptr);
-   THR_HARD_ASSERT(write_idx < _cnt);
 
-   ptr[write_idx] = std::forward<T>(el);
-   _end = write_idx;
+   ptr[_write_idx] = std::move(el);
 }
 
 template <typename T>
-THR_INLINE const T& CircularBuff<T>::get() const
+THR_INLINE void CircularBuff<T>::put(const T& el)
 {
-   THR_HARD_ASSERT(_end < _cnt);
-   const T* const ptr = _buff.get();
+   advanceWriteIdx();
+   
+   T* const ptr = _buff;
    THR_HARD_ASSERT(ptr != nullptr);
-   return ptr[_end];
+
+   ptr[_write_idx] = el;
 }
 
 template <typename T>
-THR_INLINE T& CircularBuff<T>::get()
+THR_INLINE T CircularBuff<T>::get()
 {
-   THR_HARD_ASSERT(_end < _cnt);
-   T* const ptr = _buff.get();
+   THR_HARD_ASSERT(_write_idx < _cnt);
+
+   if (_write_idx == _read_idx) {
+      THR_HARD_ASSERT_LOG(false, "Getting from empty buffer");
+      return T();
+   }
+
+   T* const ptr = _buff;
    THR_HARD_ASSERT(ptr != nullptr);
-   return ptr[_end];
+
+   const T* const elem = ptr + _read_idx;
+   _read_idx = (_read_idx + 1) % _cnt;
+
+   return std::move(*elem);
 }
 
 template <typename T>
@@ -80,7 +101,17 @@ void CircularBuff<T>::allocBuffer()
       return;
    }
 
-   _buff = std::unique_ptr(m);
+   _buff = reinterpret_cast<T*>(m);
+}
+
+template <typename T>
+THR_INLINE void CircularBuff<T>::advanceWriteIdx()
+{
+   _write_idx = (_write_idx + 1) % _cnt;
+
+   if (_write_idx == _read_idx) { // if we're full, we need to shift beginning index
+      _read_idx = (_read_idx + 1) % _cnt;
+   }
 }
    
 } // namespace Thr

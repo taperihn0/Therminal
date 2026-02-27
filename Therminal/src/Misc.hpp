@@ -4,6 +4,7 @@
 #include "Assert.hpp"
 #include "Types.hpp"
 #include <GLFW/glfw3.h>
+#include <cmath>
 
 namespace Thr 
 {
@@ -38,6 +39,12 @@ decltype(auto) getNthArgument(Ts&&... args)
 THR_INLINE bool glfwIsInitialized() {
    markUnused(glfwGetKeyScancode(GLFW_KEY_0));
    return glfwGetError(nullptr) != GLFW_NOT_INITIALIZED;
+}
+
+template <typename T>
+THR_FORCEINLINE constexpr T sq(T x)
+{
+   return x * x;
 }
 
 } // namespace Thr

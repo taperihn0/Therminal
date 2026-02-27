@@ -6,6 +6,7 @@
 #include <limits>
 #include <uchar.h>
 #include <type_traits>
+#include <uchar.h>
 
 namespace Thr
 {
@@ -92,5 +93,8 @@ static constexpr float64_t operator"" _f64(floatmax_t v) noexcept
 {
    return static_cast<float64_t>(v);
 }
+
+template <typename T>
+using Ptr = T*;
 
 } // namespace Thr

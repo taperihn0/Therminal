@@ -8,7 +8,6 @@ namespace Thr
 template <typename... Ts>
 void Log::message(Log::messageLevel lvl, Ts&&... args)
 {
-   THR_HARD_ASSERT(_initialized);
    THR_STATIC_ASSERT(sizeof...(args) < _ArgumentLimit);
 
    const size_t msgval = static_cast<size_t>(lvl) - 1;
@@ -39,8 +38,6 @@ void Log::frameInfoMessage(const char* file, uint line, const char* func, Ts&&..
 template <std::size_t N, typename... Ts>
 THR_INLINE void Log::printQueue(std::string_view format, Ts&&... queue)
 {
-   THR_HARD_ASSERT(_initialized);
-
    const size_t pos = format.find("{}");
    
    {

@@ -30,8 +30,6 @@ public:
       MSG_MAX   = MSG_FATAL,
    };
 
-   static void init();
-
    /* The arguments should be formatted in C manner.
    *  For now, only types are handled.
    */
@@ -85,13 +83,6 @@ private:
 
    static inline bool _initialized = false;
 };
-
-THR_INTERNAL void Log::init() 
-{
-   // Turn off sync with printf calls
-   std::cout.sync_with_stdio(0);
-   _initialized = true;
-}
 
 // External logger API for clients
 #define THR_LOG_DEBUG(...)      ::Thr::Log::message(::Thr::Log::MSG_DEBUG, __VA_ARGS__)

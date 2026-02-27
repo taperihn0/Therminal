@@ -29,6 +29,16 @@ THR_INLINE size_t getPageSize()
 #endif
 }
 
+THR_INTERNAL THR_FORCEINLINE void memSet(void* s, int c, size_t n)
+{
+	std::memset(s, c, n);
+}
+
+THR_INTERNAL THR_FORCEINLINE void memCpy(void* d, const void* s, size_t n)
+{
+	std::memcpy(d, s, n);
+}
+
 THR_INTERNAL THR_FORCEINLINE void prefetch(const void* addr) 
 {
 #if defined(_MSC_VER) || defined(_INTEL_COMPILER)

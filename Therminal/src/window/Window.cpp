@@ -1,6 +1,6 @@
 #include "Window.hpp"
 #include "logger/Log.hpp"
-#include "input/InputQueue.hpp"
+#include "io/InputQueue.hpp"
 
 namespace Thr
 {
@@ -66,9 +66,11 @@ bool Window::init(uint width, uint height, const std::string& title)
    }
 
    // Initialize GLFW context
-   if (glfwInit() == GLFW_FALSE) {
-      THR_LOG_FATAL_FRAME_INFO("Failed to initialize GLFW context!");
-      return false;
+   if (!glfwIsInitialized()) { 
+      if (glfwInit() == GLFW_FALSE) {
+         THR_LOG_FATAL_FRAME_INFO("Failed to initialize GLFW context!");
+         return false;
+      }
    }
 
    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -323,25 +325,25 @@ void Window::setEventCallbacks()
       }
    );
 
-   glfwSetKeyCallback(_native_window, 
-      [](GLFWwindow* platform_native_window, int key, THR_UNUSED int scancode, int action, THR_UNUSED int mods)
+   glfwSetKeyCallback(_native_window,     
+      [](GLFWwindow* platform_native_window, int key, int scancode, int action, int mods)
       {
          Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
          std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
 
          switch (action) {
          case GLFW_PRESS: {
-            KeyPressEvent ev(key);
+            KeyPressEvent ev(key, scancode, mods);
             callbacks->key_press_callback(ev);
             break;
          }
          case GLFW_REPEAT: {
-            KeyRepeatEvent ev(key);
+            KeyRepeatEvent ev(key, scancode, mods);
             callbacks->key_repeat_callback(ev);
             break;
          }
          case GLFW_RELEASE: {
-            KeyReleaseEvent ev(key);
+            KeyReleaseEvent ev(key, scancode, mods);
             callbacks->key_release_callback(ev);
             break;
          }
@@ -353,7 +355,7 @@ void Window::setEventCallbacks()
    glfwSetCharCallback(_native_window, 
       [](GLFWwindow* platform_native_window, unsigned int codepoint)
       {
-         KeyTypeEvent ev(codepoint);
+         KeyTypeEvent ev(codepoint, 0, 0);
 
          Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
          THR_UNUSED Window* window = data->window;
