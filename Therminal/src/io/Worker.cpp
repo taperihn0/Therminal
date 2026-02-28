@@ -4,14 +4,26 @@
 namespace Thr
 {
    
-ThreadWorker::ThreadWorker(std::shared_ptr<InputRingBuffer> is, 
-                           std::shared_ptr<OutputBuffer> os,
-                           int ptym)
-   : _is_buff(is)
-   , _os_buff(os)
+ThreadWorker::ThreadWorker()
+   : _is_buff(nullptr)
+   , _os_buff(nullptr)
    , _running(false)
-   , _ptymfd(ptym)
+   , _ptymfd(-1)
 {}
+
+ThreadWorker::~ThreadWorker()
+{
+   stop();
+}
+
+void ThreadWorker::init(Ptr<InputRingBuffer> is, 
+                        Ptr<OutputBuffer> os,
+                        int ptym)
+{
+   _is_buff = is;
+   _os_buff = os;
+   _ptymfd = ptym;   
+}
 
 void ThreadWorker::spawn()
 {

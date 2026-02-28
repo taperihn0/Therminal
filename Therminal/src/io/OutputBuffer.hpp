@@ -14,7 +14,7 @@ public:
    
    THR_INLINE void swap();
    THR_INLINE void write(std::unique_ptr<byte[]>&& m);
-   THR_INLINE void read(Ptr<std::unique_ptr<byte[]>>& m);
+   THR_INLINE void read(std::unique_ptr<byte[]>& m);
 private:
    static constexpr size_t      _WriteSideBuff = 0;
    static constexpr size_t      _ReadSideBuff  = 1;
@@ -45,11 +45,11 @@ THR_INLINE void OutputBuffer::write(std::unique_ptr<byte[]>&& m)
    *write_buff = std::move(m);
 }
 
-THR_INLINE void OutputBuffer::read(Ptr<std::unique_ptr<byte[]>>& m) 
+THR_INLINE void OutputBuffer::read(std::unique_ptr<byte[]>& m) 
 {
    std::lock_guard<std::mutex> lock(_read_mutex);
    Ptr<std::unique_ptr<byte[]>> read_buff = _buff_ptr[_ReadSideBuff];
-   m = std::move(read_buff);
+   m = std::move(*read_buff);
 }
 
 } // namespace Thr

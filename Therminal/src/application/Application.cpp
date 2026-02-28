@@ -1,15 +1,22 @@
 #include "Application.hpp"
 #include "logger/Log.hpp"
+#include "core/core_common.h"
+#include "core/pty.h"
+#include "core/tty_man.h"
 
 namespace Thr 
 {
 
 static constexpr size_t InputRingSize = 512;
 
-Application::_IO Application::_io {
-	InputEvTransl  (),
+static struct termios orig_termios;
+static struct winsize size;
+
+Application::_IO Application::_io = { 
+	InputEvTransl(),
 	InputRingBuffer(InputRingSize),
-	OutputBuffer   (),
+	OutputBuffer(),
+	ThreadWorker()
 };
 
 void Application::winErrorCallback(ErrorEvent ev)
@@ -120,6 +127,8 @@ Application::Application(int argc, char* argv[])
    , _window(std::make_unique<Window>())
 	, _monitor_width(-1)
    , _monitor_height(-1)
+	, _interactive(false)
+	, _fdm(-1)
 {
    init();
 
@@ -137,10 +146,10 @@ void Application::run()
    THR_LOG_INFO("Welcome to Therminal!");
 
 	while (_window->isOpen()) {
-
-		if (!_window->isSuspended()){
-			;
-		}
+		
+		std::unique_ptr<byte[]> m;
+		_io.output_buff.read(m);
+		_io.output_buff.swap();
 
 		_window->update();
 	}
@@ -177,6 +186,52 @@ void Application::init()
    _window->setMouseReleaseCallback(winMouseReleaseCallback);
    _window->setMouseMoveCallback(winMouseMoveCallback);
    _window->setMouseScrollCallback(winMouseScrollCallback);
+
+	createShellFork();
+}
+
+void Application::createShellFork()
+{
+   pid_t pid;
+   char slave_name[20];
+
+   _interactive = isatty(STDIN_FILENO);
+
+   if (_interactive) { /* fetch current termios and window size */
+      if (save_termios(STDIN_FILENO, &orig_termios) < 0)
+         THR_LOG_ERROR("Failed to save origin termios attributes");
+
+      if (save_winsize(STDIN_FILENO, &size) < 0)
+         THR_LOG_ERROR("Failed to save origin winsize");
+
+      pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
+                     &orig_termios, &size);
+   } 
+   else {
+      pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
+                     nullptr, nullptr);
+   }
+
+   if (pid < 0) {
+      THR_HARD_ASSERT_LOG(false, "fork error");
+   } 
+   else if (pid == 0) { /* child */ 
+      char shell[] = "zsh";
+
+      if (execlp(shell, "-zsh", "-l", (char*)0) < 0) {
+         THR_LOG_FATAL_FRAME_INFO("Can't execute: %s", shell);
+			THR_HARD_ASSERT(false);
+      }
+   }
+
+   THR_LOG_DEBUG("Slave name = {}", slave_name);
+   THR_LOG_DEBUG("Interactive = {}", _interactive);
+
+	_io.worker.init(std::addressof(_io.input_circ_buff), 
+						 std::addressof(_io.output_buff), 
+						 _fdm);
+
+	_io.worker.spawn();
 }
 
 void Application::getPrimaryMonitorSize(int& width, int& height)

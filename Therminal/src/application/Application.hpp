@@ -22,6 +22,7 @@ public:
    void run();
 private:
    void init();
+   void createShellFork();
    void getPrimaryMonitorSize(int& width, int& height);
 
    /* custom event callbacks */
@@ -43,12 +44,15 @@ private:
    std::unique_ptr<Window> _window;
    int                     _monitor_width;
    int                     _monitor_height;
+   bool                    _interactive;
+   int                     _fdm;
 
    struct _IO
    {
       InputEvTransl   input_ev_transl;
       InputRingBuffer input_circ_buff;
       OutputBuffer    output_buff;
+      ThreadWorker    worker;
    };
 
    static _IO _io;
