@@ -7,8 +7,6 @@
 namespace Thr
 {
 
-using in_char_t = char16_t;
-
 /* Storage for incoming input of bytes
 *  to the pseudo-terminal master.
 */
@@ -18,15 +16,15 @@ public:
    InputRingBuffer() = delete;
    InputRingBuffer(size_t size);
 
-   THR_INLINE in_char_t get();
-   THR_INLINE void put(in_char_t data);
+   THR_INLINE char get();
+   THR_INLINE void put(char data);
 
    THR_INLINE bool isFull() const;
    THR_INLINE bool isReady() const;
 private:
-   const size_t            _size;
-   CircularBuff<in_char_t> _circ_buff;
-   mutable std::mutex      _mutex;
+   const size_t       _size;
+   CircularBuff<char> _circ_buff;
+   mutable std::mutex _mutex;
 };
 
 THR_INTERNAL InputRingBuffer::InputRingBuffer(size_t size)
@@ -34,13 +32,13 @@ THR_INTERNAL InputRingBuffer::InputRingBuffer(size_t size)
    , _circ_buff(_size)
 {}
 
-THR_INLINE in_char_t InputRingBuffer::get()
+THR_INLINE char InputRingBuffer::get()
 {
    std::lock_guard<std::mutex> lock(_mutex);
    return _circ_buff.get();
 }
 
-THR_INLINE void InputRingBuffer::put(in_char_t data)
+THR_INLINE void InputRingBuffer::put(char data)
 {
    std::lock_guard<std::mutex> lock(_mutex);
    _circ_buff.put(data);

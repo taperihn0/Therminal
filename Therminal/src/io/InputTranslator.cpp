@@ -20,11 +20,6 @@ THR_FORCEINLINE int toLower(int keycode)
 	return tolower(keycode);
 }
 
-THR_FORCEINLINE char toChar(int keycode) 
-{
-	return keycode - THR_KEY_A + 1;
-}
-
 /* Translate key-pressed or key-repeated event 'ev' to
 *  stream of bytes. That translation
 *  is needed for events with mod keys,
@@ -43,7 +38,9 @@ std::string InputEvTransl::translate(KeyButtonEvent<C>& ev)
 
 		const auto& state = ev.getKeyParams();
 
-		if (!state.mods) {
+		/* We'll handle that as KeyTypedEvent */
+		if (isAlpha(state.keycode) && 
+			!state.mods) {
 			ev.unhandleEvent();
 			return "";
 		}
@@ -63,7 +60,7 @@ std::string InputEvTransl::translate(KeyButtonEvent<C>& ev)
 		*/
 		if (state.mods & THR_MOD_CONTROL) {
 			if (isAlpha(state.keycode)) {
-				const char ch = toChar(state.keycode);
+				const char ch = state.keycode - THR_KEY_A + 1;
 				return std::string(1, ch);
 			}
 		}
@@ -91,7 +88,19 @@ std::string InputEvTransl::translate(KeyButtonEvent<C>& ev)
 */
 void InputEvTransl::createMapping()
 {
-	THR_LOG_ERROR("No event mapping yet");
+	THR_LOG_ERROR("Creating ANSI Escape codes mapping");
+
+	// Tab
+	_map[{ THR_KEY_TAB, THR_MOD_SHIFT 		}] = "\t";
+	_map[{ THR_KEY_TAB, 0			  		}] = "\t";
+	// Backspace
+	_map[{ THR_KEY_BACKSPACE, THR_MOD_SHIFT }] = "\b";
+	_map[{ THR_KEY_BACKSPACE, 0			    }] = "\b";
+	// Enter
+	_map[{ THR_KEY_ENTER, THR_MOD_SHIFT 	}] = "\r";
+	_map[{ THR_KEY_ENTER, THR_MOD_CONTROL 	}] = "\r";
+	_map[{ THR_KEY_ENTER, THR_MOD_ALT 	    }] = "\n";
+	_map[{ THR_KEY_ENTER, 0			    	}] = "\r";
 }
 
 } // namespace Thr

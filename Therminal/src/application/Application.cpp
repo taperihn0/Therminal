@@ -59,7 +59,7 @@ void Application::winKeyPressCallback(KeyPressEvent ev)
 		return;
 
 	for (char c : data) {
-		_io.input_circ_buff.put(static_cast<in_char_t>(c));
+		_io.input_circ_buff.put(c);
 	}
 }
 
@@ -79,7 +79,7 @@ void Application::winKeyRepeatCallback(KeyRepeatEvent ev)
 		return;
 
 	for (char c : data) {
-		_io.input_circ_buff.put(static_cast<in_char_t>(c));
+		_io.input_circ_buff.put(c);
 	}
 }
 
@@ -94,7 +94,7 @@ void Application::winKeyTypeCallback(KeyTypeEvent ev)
 		return;
 
 	for (char c : data) {
-		_io.input_circ_buff.put(static_cast<in_char_t>(c));
+		_io.input_circ_buff.put(c);
 	}
 }
 

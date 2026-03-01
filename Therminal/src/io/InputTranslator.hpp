@@ -31,8 +31,10 @@ THR_INLINE constexpr bool EvKey::operator!=(const EvKey& k) const
 } // namespace Thr
 
 template <>
-struct std::hash<Thr::EvKey> {
-	size_t operator()(const Thr::EvKey& k) const {
+struct std::hash<Thr::EvKey> 
+{
+	size_t operator()(const Thr::EvKey& k) const 
+	{
 		const uint64_t m = (static_cast<uint64_t>(k.key) << 32) | k.mods;
 		return hash<uint64_t>()(m);
 	}

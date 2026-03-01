@@ -66,11 +66,11 @@ void ThreadWorker::thrExecution()
 		}
  
 		if (_is_buff->isReady()) { /* copies input to ptym */
-			const in_char_t ch = _is_buff->get();
+			const char ch = _is_buff->get();
 			
 			// TODO: handle EOF
 
-			if (writen(pfd.fd, &ch, sizeof(ch)) != sizeof(ch))
+			if (writen(pfd.fd, &ch, 1) != sizeof(ch))
 				THR_LOG_ERROR("writen error to master pty");
 		}
 	}
