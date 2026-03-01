@@ -5,88 +5,79 @@ namespace Thr
 {
    
 ThreadWorker::ThreadWorker()
-   : _is_buff(nullptr)
-   , _os_buff(nullptr)
-   , _running(false)
-   , _ptymfd(-1)
+	: _is_buff(nullptr)
+	, _os_buff(nullptr)
+	, _running(false)
+	, _ptymfd(-1)
 {}
 
 ThreadWorker::~ThreadWorker()
 {
-   stop();
+	stop();
 }
 
 void ThreadWorker::init(Ptr<InputRingBuffer> is, 
-                        Ptr<OutputBuffer> os,
-                        int ptym)
+						Ptr<OutputBuffer> os,
+						int ptym)
 {
-   _is_buff = is;
-   _os_buff = os;
-   _ptymfd = ptym;   
+	_is_buff = is;
+	_os_buff = os;
+	_ptymfd = ptym;   
 }
 
 void ThreadWorker::spawn()
 {
-   _running = true;
-   _thr = std::thread(
-      [this]() {
-         this->thrExecution();
-      });
+	_running = true;
+	_thr = std::thread(
+	  [this]() {
+		 this->thrExecution();
+	  });
 }
 
 void ThreadWorker::stop()
 {
-   if (_thr.joinable()) {
-      _running = false;
-      _thr.join();
-   }
+	if (_thr.joinable()) {
+		_running = false;
+		_thr.join();
+	}
 }
 
 void ThreadWorker::thrExecution()
 {
-   int nread;
+	int nread;
 
-   static constexpr size_t BuffSize = 512;
-   char buff[BuffSize];
+	byte buff[OutputBuffer::BuffSize];
 
-   struct pollfd pfd;
-   pfd.fd = _ptymfd;
-   pfd.events = POLLIN;
+	struct pollfd pfd;
+	pfd.fd = _ptymfd;
+	pfd.events = POLLIN;
 
-   static constexpr int Timeout = 5;
+	static constexpr int Timeout = 1;
 
-   while (_running) {
-      if (poll(&pfd, 1, Timeout) <= 0)
-         break;
+	while (_running) {
+		if (poll(&pfd, 1, Timeout) < 0)
+			break;
 
-      if (pfd.revents & (POLLIN | POLLHUP | POLLERR)) { /* copies ptym to output */
-         if ((nread = read(pfd.fd, buff, sizeof(buff))) <= 0)
-            break;
-         
-         // TODO: avoid small allocations here.
-         // Implement pre-allocated buffer inside output segment and 
-         // copy the data there.
-         auto alloc = std::make_unique<byte[]>(nread);
-         memCpy(reinterpret_cast<void*>(alloc.get()), buff, nread);
+		if (pfd.revents & (POLLIN | POLLHUP | POLLERR)) { /* copies ptym to output */
+			if ((nread = read(pfd.fd, buff, sizeof(buff))) <= 0)
+				break;
+			
+			_os_buff->write(buff, nread);
+		}
+ 
+		if (_is_buff->isReady()) { /* copies input to ptym */
+			const in_char_t ch = _is_buff->get();
+			
+			// TODO: handle EOF
 
-         _os_buff->write(std::move(alloc));
-      }
+			if (writen(pfd.fd, &ch, sizeof(ch)) != sizeof(ch))
+				THR_LOG_ERROR("writen error to master pty");
+		}
+	}
 
-      /* copies input to ptym */
-
-      if (_is_buff->isReady()) {
-         const in_char_t ch = _is_buff->get();
-         
-         // TODO: handle EOF
-
-         if (writen(pfd.fd, &ch, sizeof(ch)) != sizeof(ch))
-            THR_LOG_ERROR("writen error to master pty");
-         }
-   }
-
-   /*
-   *  We should terminate.
-   */
+	/*
+	*  We should terminate.
+	*/
 }
 
 } // namespace Thr

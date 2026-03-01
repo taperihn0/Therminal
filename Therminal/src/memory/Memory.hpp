@@ -29,17 +29,17 @@ THR_INLINE size_t getPageSize()
 #endif
 }
 
-THR_INTERNAL THR_FORCEINLINE void memSet(void* s, int c, size_t n)
+THR_FORCEINLINE void memSet(void* s, int c, size_t n)
 {
 	std::memset(s, c, n);
 }
 
-THR_INTERNAL THR_FORCEINLINE void memCpy(void* d, const void* s, size_t n)
+THR_FORCEINLINE void memCpy(void* d, const void* s, size_t n)
 {
 	std::memcpy(d, s, n);
 }
 
-THR_INTERNAL THR_FORCEINLINE void prefetch(const void* addr) 
+THR_FORCEINLINE void prefetch(const void* addr) 
 {
 #if defined(_MSC_VER) || defined(_INTEL_COMPILER)
 	_mm_prefetch(reinterpret_cast<const char*>(addr), _MM_HINT_T2);

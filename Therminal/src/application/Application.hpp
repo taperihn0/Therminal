@@ -15,47 +15,46 @@ namespace Thr
 class Application 
 {
 public:
-   Application() = default;
-   Application(int argc, char* argv[]);
-   ~Application() = default;
+	Application() = default;
+	Application(int argc, char* argv[]);
+	~Application() = default;
 
-   void run();
+	void run();
 private:
-   void init();
-   void createShellFork();
-   void getPrimaryMonitorSize(int& width, int& height);
+	void init();
+	void createShellFork();
+	void getPrimaryMonitorSize(int& width, int& height);
 
-   /* custom event callbacks */
-   static void winErrorCallback(ErrorEvent ev);
-   static void winResizeCallback(WindowResizeEvent ev);
-   static void winMoveCallback(WindowMoveEvent ev);
-   static void winFocusCallback(WindowFocusEvent ev);
-   static void winCloseCallback();
-   static void winKeyPressCallback(KeyPressEvent ev);
-   static void winKeyReleaseCallback(KeyReleaseEvent ev);
-   static void winKeyRepeatCallback(KeyRepeatEvent ev);
-   static void winKeyTypeCallback(KeyTypeEvent ev);
-   static void winMousePressCallback(MousePressEvent ev);
-   static void winMouseReleaseCallback(MouseReleaseEvent ev);
-   static void winMouseMoveCallback(MouseMoveEvent ev);
-   static void winMouseScrollCallback(MouseScrollEvent ev);
-   
-   FilePath                _cwd;
-   std::unique_ptr<Window> _window;
-   int                     _monitor_width;
-   int                     _monitor_height;
-   bool                    _interactive;
-   int                     _fdm;
+	/* custom event callbacks */
+	static void winErrorCallback(ErrorEvent ev);
+	static void winResizeCallback(WindowResizeEvent ev);
+	static void winMoveCallback(WindowMoveEvent ev);
+	static void winFocusCallback(WindowFocusEvent ev);
+	static void winCloseCallback();
+	static void winKeyPressCallback(KeyPressEvent ev);
+	static void winKeyReleaseCallback(KeyReleaseEvent ev);
+	static void winKeyRepeatCallback(KeyRepeatEvent ev);
+	static void winKeyTypeCallback(KeyTypeEvent ev);
+	static void winMousePressCallback(MousePressEvent ev);
+	static void winMouseReleaseCallback(MouseReleaseEvent ev);
+	static void winMouseMoveCallback(MouseMoveEvent ev);
+	static void winMouseScrollCallback(MouseScrollEvent ev);
+	
+	struct _IO
+	{
+		InputEvTransl   input_ev_transl;
+		InputRingBuffer input_circ_buff;
+		OutputBuffer    output_buff;
+		ThreadWorker    worker;
+	};
 
-   struct _IO
-   {
-      InputEvTransl   input_ev_transl;
-      InputRingBuffer input_circ_buff;
-      OutputBuffer    output_buff;
-      ThreadWorker    worker;
-   };
-
-   static _IO _io;
+	FilePath                _cwd;
+	std::unique_ptr<Window> _window;
+	int                     _monitor_width;
+	int                     _monitor_height;
+	bool                    _interactive;
+	int                     _fdm;
+	static _IO _io;
 };
 
 } // namespace Thr

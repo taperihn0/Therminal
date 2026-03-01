@@ -4,10 +4,25 @@
 
 namespace Thr
 {
-   
+	
 InputEvTransl::InputEvTransl()
 {
-   createMapping();
+	createMapping();
+}
+
+THR_FORCEINLINE bool isAlpha(int keycode) 
+{
+	return keycode >= THR_KEY_A and keycode <= THR_KEY_Z;
+}
+
+THR_FORCEINLINE int toLower(int keycode) 
+{
+	return tolower(keycode);
+}
+
+THR_FORCEINLINE char toChar(int keycode) 
+{
+	return keycode - THR_KEY_A + 1;
 }
 
 /* Translate key-pressed or key-repeated event 'ev' to
@@ -15,33 +30,60 @@ InputEvTransl::InputEvTransl()
 *  is needed for events with mod keys,
 *  ie. SHIFT+a or GLFW_MOD_CAPS_LOCK+g
 */
-std::string InputEvTransl::translate(int keycode, int mods)
+template <EventCode C>
+std::string InputEvTransl::translate(KeyButtonEvent<C>& ev)
 {
-   /* Sometimes we got just raw type event.
-   */
-   if (!mods) {
-      return std::string(1, keycode);
-   }
+	if constexpr (C == EV_KEY_RELEASED) {
+		ev.unhandleEvent();
+		return "";
+	}
 
-   EvKey key { keycode, mods };
+	else if constexpr (C == EV_KEY_REPEATED ||
+					   C == EV_KEY_PRESSED) {
 
-   /* First, we check for control codes, since
-   *  they are easy to encode.
-   */
-   if (mods & THR_MOD_CONTROL) {
-      if (keycode >= THR_KEY_A && keycode <= THR_KEY_Z) {
-         const char ctrl_code = static_cast<char>(keycode - THR_KEY_A + 1);
-         return std::string(1, ctrl_code);
-      }
-   }
+		const auto& state = ev.getKeyParams();
 
-   const auto it = _map.find(key);
+		if (!state.mods) {
+			ev.unhandleEvent();
+			return "";
+		}
 
-   if (it != _map.end()) {
-      return it->second;
-   }
+		else if (isAlpha(state.keycode) &&
+				 (state.mods & ~THR_MOD_SHIFT) == 0) {
+			ev.unhandleEvent();
+			return "";
+		}
 
-   return "";
+		ev.handleEvent();
+
+		EvKey key { state.keycode, state.mods };
+
+		/* First, we check for control codes, since
+		*  they are easy to encode.
+		*/
+		if (state.mods & THR_MOD_CONTROL) {
+			if (isAlpha(state.keycode)) {
+				const char ch = toChar(state.keycode);
+				return std::string(1, ch);
+			}
+		}
+
+		const auto it = _map.find(key);
+
+		if (it != _map.end()) {
+			return it->second;
+		}
+
+		return "";
+	}
+
+	else if constexpr (C == EV_KEY_TYPED) {
+		ev.handleEvent();
+		const auto& state = ev.getKeyParams();
+		return std::string(1, static_cast<char>(state.keycode));
+	}
+
+	else THR_STATIC_ASSERT_LOG(false, "Unknown keybutton event");
 }
 
 /* Create mapping for easy key and mod lookup
@@ -49,7 +91,12 @@ std::string InputEvTransl::translate(int keycode, int mods)
 */
 void InputEvTransl::createMapping()
 {
-   THR_LOG_ERROR("No event mapping yet");
+	THR_LOG_ERROR("No event mapping yet");
 }
 
 } // namespace Thr
+
+template std::string Thr::InputEvTransl::translate<Thr::EV_KEY_PRESSED>(Thr::KeyPressEvent&);
+template std::string Thr::InputEvTransl::translate<Thr::EV_KEY_TYPED>  (Thr::KeyTypeEvent&);
+template std::string Thr::InputEvTransl::translate<Thr::EV_KEY_RELEASED>(Thr::KeyReleaseEvent&);
+template std::string Thr::InputEvTransl::translate<Thr::EV_KEY_REPEATED>(Thr::KeyRepeatEvent&);

@@ -50,56 +50,52 @@ void Application::winCloseCallback()
 
 void Application::winKeyPressCallback(KeyPressEvent ev)
 {
-	const auto& state = ev.getKeyParams();
-	THR_LOG_DEBUG("Key press callback: key {}, scancode {}, mods {}", state.keycode, state.scancode, state.mods);
+	//const auto& state = ev.getKeyParams();
+	//THR_LOG_DEBUG("Event press callback: keycode {}, mods {}", state.keycode, state.mods);
 
-	const std::string data = _io.input_ev_transl.translate(state.keycode, state.mods);
-	
-#if defined(THR_DEBUG)
-	std::stringstream ss;
-	ss << "Key data stream: ";
+	const std::string data = _io.input_ev_transl.translate(ev);
 
-	for (char c : data) 
-		ss << static_cast<int>(c) << ' ';
+	if (!ev.isHandled())
+		return;
 
-	THR_LOG_DEBUG(ss.str());
-#endif
-
-	for (char c : data)
+	for (char c : data) {
 		_io.input_circ_buff.put(static_cast<in_char_t>(c));
+	}
 }
 
 void Application::winKeyReleaseCallback(KeyReleaseEvent ev)
 {
-	const auto& state = ev.getKeyParams();
-	THR_LOG_DEBUG("Key release callback: key {}, scancode {}, mods {}", state.keycode, state.scancode, state.mods);
+	markUnused(ev);
 }
 
 void Application::winKeyRepeatCallback(KeyRepeatEvent ev) 
 {
-	const auto& state = ev.getKeyParams();
-	THR_LOG_DEBUG("Key repeat callback: key {}, scancode {}, mods {}", state.keycode, state.scancode, state.mods);
+	//const auto& state = ev.getKeyParams();
+	//THR_LOG_DEBUG("Event repeat callback: keycode {}, mods {}", state.keycode, state.mods);
 
-	const std::string data = _io.input_ev_transl.translate(state.keycode, state.mods);
+	const std::string data = _io.input_ev_transl.translate(ev);
 
-#if defined(THR_DEBUG)
-	std::stringstream ss;
-	ss << "Key data stream: ";
+	if (!ev.isHandled())
+		return;
 
-	for (char c : data) 
-		ss << static_cast<int>(c) << ' ';
-
-	THR_LOG_DEBUG(ss.str());
-#endif
-
-	for (char c : data)
+	for (char c : data) {
 		_io.input_circ_buff.put(static_cast<in_char_t>(c));
+	}
 }
 
 void Application::winKeyTypeCallback(KeyTypeEvent ev)
 {
-	const auto& state = ev.getKeyParams();
-	THR_LOG_DEBUG("Key type callback: code {}", state.keycode);
+	//const auto& state = ev.getKeyParams();
+	//THR_LOG_DEBUG("Event type callback: keycode {}, mods {}", state.keycode, state.mods);
+
+	const std::string data = _io.input_ev_transl.translate(ev);
+
+	if (!ev.isHandled())
+		return;
+
+	for (char c : data) {
+		_io.input_circ_buff.put(static_cast<in_char_t>(c));
+	}
 }
 
 void Application::winMousePressCallback(MousePressEvent ev)
@@ -123,10 +119,10 @@ void Application::winMouseScrollCallback(MouseScrollEvent ev)
 }
 
 Application::Application(int argc, char* argv[]) 
-   : _cwd(FilePath::getCurrentDirectory()) 
-   , _window(std::make_unique<Window>())
+	: _cwd(FilePath::getCurrentDirectory()) 
+	, _window(std::make_unique<Window>())
 	, _monitor_width(-1)
-   , _monitor_height(-1)
+	, _monitor_height(-1)
 	, _interactive(false)
 	, _fdm(-1)
 {
@@ -135,7 +131,7 @@ Application::Application(int argc, char* argv[])
    std::stringstream ss;
 
    for (int i = 0; i < argc; i++) {
-      ss << argv[i] << ' ';
+	  ss << argv[i] << ' ';
    }
 
    THR_LOG_DEBUG("Got from cmd: {}", ss.str());
@@ -147,9 +143,14 @@ void Application::run()
 
 	while (_window->isOpen()) {
 		
-		std::unique_ptr<byte[]> m;
-		_io.output_buff.read(m);
+		int n = 0;
+		const byte* ptr = _io.output_buff.read(n);
 		_io.output_buff.swap();
+
+		if (n > 0) {
+			writen(STDOUT_FILENO, ptr, n);
+			fflush(stdout);
+		}
 
 		_window->update();
 	}
@@ -167,69 +168,69 @@ void Application::init()
 	const long window_height = std::lroundf(_monitor_height / MonitorHeightDiv);
 
    _window->init(static_cast<uint>(window_width), 
-					  static_cast<uint>(window_height), 
-					  "Hello GLFW!");
+				 static_cast<uint>(window_height), 
+				 "Hello GLFW!");
 
-   _window->setErrorCallback(winErrorCallback);
+	_window->setErrorCallback(winErrorCallback);
 
-   _window->setWindowResizeCallback(winResizeCallback);
-   _window->setWindowMoveCallback(winMoveCallback);
-   _window->setWindowFocusCallback(winFocusCallback);
-   _window->setWindowCloseCallback(winCloseCallback);
+	_window->setWindowResizeCallback(winResizeCallback);
+	_window->setWindowMoveCallback(winMoveCallback);
+	_window->setWindowFocusCallback(winFocusCallback);
+	_window->setWindowCloseCallback(winCloseCallback);
 
-   _window->setKeyPressCallback(winKeyPressCallback);
-   _window->setKeyReleaseCallback(winKeyReleaseCallback);
-   _window->setKeyRepeatCallback(winKeyRepeatCallback);
-   _window->setKeyTypeCallback(winKeyTypeCallback);
-   
-   _window->setMousePressCallback(winMousePressCallback);
-   _window->setMouseReleaseCallback(winMouseReleaseCallback);
-   _window->setMouseMoveCallback(winMouseMoveCallback);
-   _window->setMouseScrollCallback(winMouseScrollCallback);
+	_window->setKeyPressCallback(winKeyPressCallback);
+	_window->setKeyReleaseCallback(winKeyReleaseCallback);
+	_window->setKeyRepeatCallback(winKeyRepeatCallback);
+	_window->setKeyTypeCallback(winKeyTypeCallback);
+
+	_window->setMousePressCallback(winMousePressCallback);
+	_window->setMouseReleaseCallback(winMouseReleaseCallback);
+	_window->setMouseMoveCallback(winMouseMoveCallback);
+	_window->setMouseScrollCallback(winMouseScrollCallback);
 
 	createShellFork();
 }
 
 void Application::createShellFork()
 {
-   pid_t pid;
-   char slave_name[20];
+	pid_t pid;
+	char slave_name[20];
 
-   _interactive = isatty(STDIN_FILENO);
+	_interactive = isatty(STDIN_FILENO);
 
-   if (_interactive) { /* fetch current termios and window size */
-      if (save_termios(STDIN_FILENO, &orig_termios) < 0)
-         THR_LOG_ERROR("Failed to save origin termios attributes");
+	if (_interactive) { /* fetch current termios and window size */
+		if (save_termios(STDIN_FILENO, &orig_termios) < 0)
+			THR_LOG_ERROR("Failed to save origin termios attributes");
 
-      if (save_winsize(STDIN_FILENO, &size) < 0)
-         THR_LOG_ERROR("Failed to save origin winsize");
+		if (save_winsize(STDIN_FILENO, &size) < 0)
+			THR_LOG_ERROR("Failed to save origin winsize");
 
-      pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
-                     &orig_termios, &size);
-   } 
-   else {
-      pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
-                     nullptr, nullptr);
-   }
+		pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
+						&orig_termios, &size);
+	} 
+	else {
+		pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
+						nullptr, nullptr);
+	}
 
-   if (pid < 0) {
-      THR_HARD_ASSERT_LOG(false, "fork error");
-   } 
-   else if (pid == 0) { /* child */ 
-      char shell[] = "zsh";
+	if (pid < 0) {
+		THR_HARD_ASSERT_LOG(false, "fork error");
+	} 
+	else if (pid == 0) { /* child */ 
+		char shell[] = "zsh";
 
-      if (execlp(shell, "-zsh", "-l", (char*)0) < 0) {
-         THR_LOG_FATAL_FRAME_INFO("Can't execute: %s", shell);
+		if (execlp(shell, "-zsh", "-l", (char*)0) < 0) {
+			THR_LOG_FATAL_FRAME_INFO("Can't execute: %s", shell);
 			THR_HARD_ASSERT(false);
-      }
-   }
+		}
+	}
 
-   THR_LOG_DEBUG("Slave name = {}", slave_name);
-   THR_LOG_DEBUG("Interactive = {}", _interactive);
+	THR_LOG_DEBUG("Slave name = {}", slave_name);
+	THR_LOG_DEBUG("Interactive = {}", _interactive);
 
 	_io.worker.init(std::addressof(_io.input_circ_buff), 
-						 std::addressof(_io.output_buff), 
-						 _fdm);
+					std::addressof(_io.output_buff), 
+					_fdm);
 
 	_io.worker.spawn();
 }
@@ -241,8 +242,8 @@ void Application::getPrimaryMonitorSize(int& width, int& height)
 
 	if (!glfwIsInitialized()) {
 		if (glfwInit() == GLFW_FALSE) {
-         THR_LOG_FATAL_FRAME_INFO("Failed to initialize GLFW context!");
-         return;
+			THR_LOG_FATAL_FRAME_INFO("Failed to initialize GLFW context!");
+			return;
 		}
 	}
 
@@ -252,8 +253,8 @@ void Application::getPrimaryMonitorSize(int& width, int& height)
 	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 	THR_HARD_ASSERT_LOG(mode != nullptr, "Failed to fetch mode of the primary monitor");
 
-   width = mode->width;
-   height = mode->height;
+	width = mode->width;
+	height = mode->height;
 }
 
 } // namespace Thr

@@ -1,5 +1,6 @@
 #include "InputQueue.hpp"
 #include "logger/Log.hpp"
+#include "window/Window.hpp"
 
 namespace Thr 
 {

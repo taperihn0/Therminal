@@ -2,7 +2,6 @@
 
 #include "Common.hpp"
 #include "memory/Memory.hpp"
-#include "window/Window.hpp"
 
 namespace Thr 
 {
