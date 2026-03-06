@@ -38,14 +38,13 @@ void Log::frameInfoMessage(const char* file, uint line, const char* func, Ts&&..
 template <std::size_t N, typename... Ts>
 THR_INLINE void Log::printQueue(std::string_view format, Ts&&... queue)
 {
+   if (!format.size())
+      return;
+
    const size_t pos = format.find("{}");
    
    {
       const size_t len = std::min(format.size(), pos);
-
-      if (len == 0)
-         return;
-
       const std::string_view stv(format.data(), len);
       std::cout << stv;
    }

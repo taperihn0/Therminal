@@ -3,6 +3,10 @@
 #include "core/core_common.h"
 #include "core/pty.h"
 #include "core/tty_man.h"
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+//#define LOG_KEY_EV
 
 namespace Thr 
 {
@@ -50,8 +54,10 @@ void Application::winCloseCallback()
 
 void Application::winKeyPressCallback(KeyPressEvent ev)
 {
-	//const auto& state = ev.getKeyParams();
-	//THR_LOG_DEBUG("Event press callback: keycode {}, mods {}", state.keycode, state.mods);
+#if defined(LOG_KEY_EV)
+	const auto& state = ev.getKeyParams();
+	THR_LOG_DEBUG("Event press callback: keycode {}, mods {}", state.keycode, state.mods);
+#endif
 
 	const std::string data = _io.input_ev_transl.translate(ev);
 
@@ -70,8 +76,10 @@ void Application::winKeyReleaseCallback(KeyReleaseEvent ev)
 
 void Application::winKeyRepeatCallback(KeyRepeatEvent ev) 
 {
-	//const auto& state = ev.getKeyParams();
-	//THR_LOG_DEBUG("Event repeat callback: keycode {}, mods {}", state.keycode, state.mods);
+#if defined(LOG_KEY_EV)
+	const auto& state = ev.getKeyParams();
+	THR_LOG_DEBUG("Event repeat callback: keycode {}, mods {}", state.keycode, state.mods);
+#endif
 
 	const std::string data = _io.input_ev_transl.translate(ev);
 
@@ -85,8 +93,10 @@ void Application::winKeyRepeatCallback(KeyRepeatEvent ev)
 
 void Application::winKeyTypeCallback(KeyTypeEvent ev)
 {
-	//const auto& state = ev.getKeyParams();
-	//THR_LOG_DEBUG("Event type callback: keycode {}, mods {}", state.keycode, state.mods);
+#if defined(LOG_KEY_EV)
+	const auto& state = ev.getKeyParams();
+	THR_LOG_DEBUG("Event type callback: keycode {}, mods {}", state.keycode, state.mods);
+#endif
 
 	const std::string data = _io.input_ev_transl.translate(ev);
 
@@ -125,6 +135,7 @@ Application::Application(int argc, char* argv[])
 	, _monitor_height(-1)
 	, _interactive(false)
 	, _fdm(-1)
+	, _grid(std::make_shared<Grid>(1024))
 {
    init();
 
@@ -139,10 +150,12 @@ Application::Application(int argc, char* argv[])
 
 void Application::run() 
 {
-   THR_LOG_INFO("Welcome to Therminal!");
-
+	THR_LOG_INFO("Welcome to Therminal!");
+	glClearColor(0.f, 1.f, 0.f, 1.f);
+	
 	while (_window->isOpen()) {
-		
+		glClear(GL_COLOR_BUFFER_BIT);
+
 		int n = 0;
 		const byte* ptr = _io.output_buff.read(n);
 		_io.output_buff.swap();
@@ -150,6 +163,8 @@ void Application::run()
 		if (n > 0) {
 			writen(STDOUT_FILENO, ptr, n);
 			fflush(stdout);
+
+			_parser.parseToGrid(ptr, n);
 		}
 
 		_window->update();
@@ -158,18 +173,18 @@ void Application::run()
 
 void Application::init() 
 {
-	getPrimaryMonitorSize(_monitor_width, _monitor_height);
+	getPrimaryMonitorPhysSize(_monitor_width, _monitor_height);
 	THR_HARD_ASSERT(_monitor_width != -1 && _monitor_height != -1);
 
-	static constexpr float MonitorWidthDiv  = 2.6f;
-	static constexpr float MonitorHeightDiv = 2.35f;
+	static constexpr float MonitorWidthFac  = 4.6f;
+	static constexpr float MonitorHeightFac = 5.1f;
 
-	const long window_width  = std::lroundf(_monitor_width / MonitorWidthDiv);
-	const long window_height = std::lroundf(_monitor_height / MonitorHeightDiv);
+	const long window_width  = std::lroundf(_monitor_width * MonitorWidthFac);
+	const long window_height = std::lroundf(_monitor_height * MonitorHeightFac);
 
-   _window->init(static_cast<uint>(window_width), 
-				 static_cast<uint>(window_height), 
-				 "Hello GLFW!");
+	_window->init(static_cast<uint>(window_width), 
+				  static_cast<uint>(window_height), 
+				  "Hello GLFW!");
 
 	_window->setErrorCallback(winErrorCallback);
 
@@ -189,6 +204,7 @@ void Application::init()
 	_window->setMouseScrollCallback(winMouseScrollCallback);
 
 	createShellFork();
+	_parser.writeTo(_grid);
 }
 
 void Application::createShellFork()
@@ -217,9 +233,9 @@ void Application::createShellFork()
 		THR_HARD_ASSERT_LOG(false, "fork error");
 	} 
 	else if (pid == 0) { /* child */ 
-		char shell[] = "zsh";
+		char shell[] = "sh";
 
-		if (execlp(shell, "-zsh", "-l", (char*)0) < 0) {
+		if (execlp(shell, "-sh", "-l", (char*)0) < 0) {
 			THR_LOG_FATAL_FRAME_INFO("Can't execute: %s", shell);
 			THR_HARD_ASSERT(false);
 		}
@@ -235,7 +251,7 @@ void Application::createShellFork()
 	_io.worker.spawn();
 }
 
-void Application::getPrimaryMonitorSize(int& width, int& height)
+void Application::getPrimaryMonitorPhysSize(int& width, int& height)
 {
 	width = -1;
 	height = -1;
@@ -250,11 +266,7 @@ void Application::getPrimaryMonitorSize(int& width, int& height)
 	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	THR_HARD_ASSERT_LOG(monitor != nullptr, "Failed to fetch primary monitor");
 
-	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-	THR_HARD_ASSERT_LOG(mode != nullptr, "Failed to fetch mode of the primary monitor");
-
-	width = mode->width;
-	height = mode->height;
+	glfwGetMonitorPhysicalSize(monitor, &width, &height);
 }
 
 } // namespace Thr

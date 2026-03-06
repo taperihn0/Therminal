@@ -74,6 +74,9 @@ public:
     bool isOpen() const;
     bool isSuspended() const;
 
+    int getWidth() const;
+    int getHeight() const;
+
     /* __setWidth / __setHeight methods do not really *resize* the window, but
     *  rather change internal state fields to match the actual size.
     *  Used internally by callbacks function on resize event.

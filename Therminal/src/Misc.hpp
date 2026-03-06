@@ -3,6 +3,8 @@
 #include "Defines.hpp"
 #include "Assert.hpp"
 #include "Types.hpp"
+#define GLFW_INCLUDE_NONE
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <cmath>
 

@@ -32,20 +32,22 @@ endif()
 message(STATUS "Sources found: ${SOURCES}")
 add_executable(Therminal ${SOURCES})
 
-# Add GLFW subdirectory #
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_DOCS 	   OFF CACHE BOOL "" FORCE)
-set(GLFW_INSTALL 		   OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS 	OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL 		OFF CACHE BOOL "" FORCE)
+set(FT_WITH_ZLIB 		OFF CACHE BOOL "" FORCE)
+set(FT_WITH_PNG 		OFF CACHE BOOL "" FORCE)
+set(FT_WITH_HARFBUZZ	OFF CACHE BOOL "" FORCE)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/vendor/glfw)
-
-# Add GLAD subdirectory #
-add_subdirectory(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/vendor/glad)
+add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glfw)
+add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glad)
+add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/freetype)
 
 target_link_libraries(Therminal PUBLIC 
 	glfw	
 	glad
+	freetype
 )
 
 target_compile_definitions(Therminal PUBLIC 
@@ -59,8 +61,9 @@ set_target_properties(Therminal PROPERTIES
 )
 
 target_include_directories(Therminal PUBLIC
-	"${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src"
-	"${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/vendor/glfw/include"
+	"${CMAKE_PROJECT_NAME}/src"
+	"${CMAKE_PROJECT_NAME}/vendor/glfw/include"
+	"${CMAKE_PROJECT_NAME}/vendor/freetype/include"
 )
 
 # Platform detection

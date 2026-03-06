@@ -8,6 +8,8 @@
 #include "io/OutputBuffer.hpp"
 #include "io/InputTranslator.hpp"
 #include "io/Worker.hpp"
+#include "screen/Grid.hpp"
+#include "io/OutputParser.hpp"
 
 namespace Thr 
 {
@@ -23,7 +25,7 @@ public:
 private:
 	void init();
 	void createShellFork();
-	void getPrimaryMonitorSize(int& width, int& height);
+	void getPrimaryMonitorPhysSize(int& width, int& height);
 
 	/* custom event callbacks */
 	static void winErrorCallback(ErrorEvent ev);
@@ -54,7 +56,9 @@ private:
 	int                     _monitor_height;
 	bool                    _interactive;
 	int                     _fdm;
-	static _IO _io;
+	std::shared_ptr<Grid>   _grid;
+	OutputParser			_parser;
+	static _IO 				_io;
 };
 
 } // namespace Thr

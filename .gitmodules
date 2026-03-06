@@ -1,3 +1,6 @@
 [submodule "Therminal/vendor/glfw"]
 	path = Therminal/vendor/glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "Therminal/vendor/freetype"]
+	path = Therminal/vendor/freetype
+	url = https://github.com/freetype/freetype.git

@@ -71,8 +71,8 @@ bool Window::init(uint width, uint height, const std::string& title)
 		}
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 	glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
@@ -96,7 +96,7 @@ bool Window::init(uint width, uint height, const std::string& title)
 	_width = width;
 	_height = height;
 
-	if ((_native_window = glfwCreateWindow(_width, _height, title.c_str(), nullptr, nullptr)) == NULL) {
+	if ((_native_window = glfwCreateWindow(_width, _height, title.c_str(), nullptr, nullptr)) == nullptr) {
 		THR_LOG_FATAL_FRAME_INFO("Failed to create a new GLFW window!");
 		return false;
 	}
@@ -106,8 +106,6 @@ bool Window::init(uint width, uint height, const std::string& title)
 	// _callback_ptrs lifetime is same as the lifetime of *this object.
 	void* user_data = reinterpret_cast<void*>(_user_callback_data.get());
 	glfwSetWindowUserPointer(_native_window, user_data);
-
-	// initialize render state
 
 	// GLFW_FOCUSED set
 	_focus = true;
@@ -120,8 +118,19 @@ bool Window::init(uint width, uint height, const std::string& title)
 	// We can now allocate our input handler queue
 	_input = std::make_unique<WinInputQueue>();
 
+	{
+		const bool glad = gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress));
+
+		if (!glad) {
+			THR_LOG_FATAL_FRAME_INFO("Failed to intialize GLAD");
+			THR_HARD_ASSERT(false);
+		}
+	}
+
 	// setup event callbacks pointers
 	setEventCallbacks();
+	// setup framebuffer
+	glViewport(0, 0, getWidth(), getHeight());
 
 	return true;
 }
@@ -129,6 +138,7 @@ bool Window::init(uint width, uint height, const std::string& title)
 void Window::update()
 {
 	THR_HARD_ASSERT(_initialized);
+	glfwSwapBuffers(_native_window);
 	_input->pollEvents();
 }
 
@@ -142,6 +152,16 @@ bool Window::isSuspended() const
 {
 	THR_HARD_ASSERT(_initialized);
 	return _suspended;
+}
+
+int Window::getWidth() const
+{
+	return _width;
+}
+
+int Window::getHeight() const
+{
+	return _height;
 }
 
 void Window::__setWidth(uint width)
@@ -248,6 +268,22 @@ void Window::setEventCallbacks()
 		{
 			ErrorEvent ev(code, desc);
 			_EventCallbacks::error_callback(ev);
+		}
+	);
+
+	glfwSetFramebufferSizeCallback(_native_window, 
+		[](GLFWwindow* platform_native_window, int width, int height) 
+		{
+			WindowResizeEvent ev(width, height);
+
+			Window::_CallbackData* data = reinterpret_cast<Window::_CallbackData*>(glfwGetWindowUserPointer(platform_native_window));
+			Window* window = data->window;
+			std::shared_ptr<_EventCallbacks> callbacks = data->callbacks;
+
+			window->__setWidth(width);
+			window->__setHeight(height);
+
+			callbacks->window_resize_callback(ev);
 		}
 	);
 
