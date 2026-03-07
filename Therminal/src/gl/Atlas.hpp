@@ -26,6 +26,8 @@ public:
 	FontAtlas(const FontAtlas&) = delete;
 	FontAtlas(FontAtlas&& atlas);
 
+	void init();
+
 	FontAtlas& operator=(const FontAtlas&) = delete;
 	FontAtlas& operator=(FontAtlas&& atlas);
 
@@ -38,7 +40,6 @@ public:
 	uint getActiveTextureUnit() const;
 	uint getActiveTextureBuffer() const;
 private:
-	void init();
 	THR_INLINE void clear();
 
 	std::unordered_map<char32_t, GlyphInfo> _glyph_map;

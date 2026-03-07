@@ -1,5 +1,6 @@
 #include "Atlas.hpp"
 #include "logger/Log.hpp"
+#include "memory/Memory.hpp"
 
 namespace Thr
 {
@@ -13,21 +14,8 @@ struct AtlasUV {
 };
 
 FontAtlas::FontAtlas()
-	: _tex_id(0)
-	, _tbo_buf_id(0)
-	, _ft_lib(nullptr)
-	, _ft_face(nullptr)
-	, _curr_glyph_id(0)
-	, _atlas_width(1024)
-	, _atlas_height(1024)
-	, _glyph_per_tbo(4096)
-	, _atlas_x_offset(0)
-	, _atlas_y_offset(0)
-	, _glyph_height(48)
-{
-	init();
-}
-
+	: FontAtlas(1024, 1024)
+{}
 
 FontAtlas::FontAtlas(uint atlas_width, uint atlas_height)
 	: _tex_id(0)
@@ -41,9 +29,7 @@ FontAtlas::FontAtlas(uint atlas_width, uint atlas_height)
 	, _atlas_x_offset(0)
 	, _atlas_y_offset(0)
 	, _glyph_height(48)
-{
-	init();
-}
+{}
 
 FontAtlas::~FontAtlas()
 {
@@ -85,15 +71,25 @@ FontAtlas& FontAtlas::operator=(FontAtlas&& atlas)
 	atlas._curr_glyph_id = 0;
 	THR_HARD_ASSERT(_atlas_width == atlas._atlas_width);
 	THR_HARD_ASSERT(_atlas_height == atlas._atlas_height);
+	THR_HARD_ASSERT(_glyph_per_tbo == atlas._glyph_per_tbo);
 	_atlas_x_offset = atlas._atlas_x_offset;
 	atlas._atlas_x_offset = 0;
 	_atlas_y_offset = atlas._atlas_y_offset;
 	atlas._atlas_y_offset = 0;
+	THR_HARD_ASSERT(_glyph_height == atlas._glyph_height);
 	return *this;
 }
 
 void FontAtlas::addGlyph(char32_t codepoint)
 {
+	GLint vao = 0;
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+
+	if (!vao) {
+		THR_LOG_ERROR("No VAO is currently bound. Cannot initialize FontAtlas.");
+		return;
+	}
+
 	if (_glyph_map.count(codepoint))
 		return;
 
@@ -169,11 +165,20 @@ uint32_t FontAtlas::getGlyphInfo(char32_t codepoint, GlyphInfo& info) const
 		return info.id;
 	}
 	
-	return static_cast<uint32_t>(-1);
+	memSet(std::addressof(info), 0, sizeof(GlyphInfo));
+	return (info.id = static_cast<uint32_t>(-1));
 }
 
 void FontAtlas::bindAtlas() const
 {
+	GLint vao = 0;
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+
+	if (!vao) {
+		THR_LOG_ERROR("No VAO is currently bound. Cannot initialize FontAtlas.");
+		return;
+	}
+
 	THR_HARD_ASSERT(_tex_id != 0 && glIsTexture(_tex_id) == GL_TRUE);
 
 	glActiveTexture(GL_TEXTURE0);
@@ -200,6 +205,19 @@ uint FontAtlas::getActiveTextureBuffer() const
 
 void FontAtlas::init()
 {
+	GLint vao = 0;
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+
+	if (!vao) {
+		THR_LOG_ERROR("No VAO is currently bound. Cannot initialize FontAtlas.");
+		return;
+	}
+
+	THR_HARD_ASSERT(_tex_id == 0 && 
+					_tbo_buf_id == 0 && 
+					_ft_lib == nullptr && 
+					_ft_face == nullptr);
+
 	glGenTextures(1, std::addressof(_tex_id));
 	THR_HARD_ASSERT(_tex_id != 0 && glIsTexture(_tex_id) == GL_TRUE);
 	

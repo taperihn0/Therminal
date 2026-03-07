@@ -25,7 +25,7 @@ void Line::putChar(char32_t ch, const EscapeState* state)
     _ln.push_back(cell);
 }
 
-const std::vector<Cell> Line::getCellLine() const
+const Vec<Cell> Line::getCellLine() const
 {
     return _ln;
 }

@@ -6,6 +6,8 @@
 #include <limits>
 #include <cuchar>
 #include <type_traits>
+#include <vector>
+#include <array>
 
 namespace Thr
 {
@@ -95,5 +97,14 @@ static constexpr float64_t operator"" _f64(floatmax_t v) noexcept
 
 template <typename T>
 using Ptr = T*;
+
+template <typename T>
+using Ref = T&;
+
+template <typename T>
+using Vec = std::vector<T>;
+
+template <typename T, size_t N>
+using Arr = std::array<T, N>;
 
 } // namespace Thr

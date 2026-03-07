@@ -3,8 +3,6 @@
 #include "Line.hpp"
 #include "memory/CircBuff.hpp"
 #include "io/OutputTranslator.hpp"
-#include "Line.hpp"
-#include <array>
 
 namespace Thr
 {
@@ -19,7 +17,7 @@ private:
     const size_t               _ln_width;
     OutputStreamTransl         _utf8_utf32;
     size_t                     _cursor_pos;
-    std::array<Line, _BufSize> _ln_buf;
+    Arr<Line, _BufSize>        _ln_buf;
 };
 
 } // namespace Thr
