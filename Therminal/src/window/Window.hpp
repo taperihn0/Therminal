@@ -50,8 +50,6 @@ struct _EventCallbacks
     MouseScrollCallback   mouse_scroll_callback  = __defaultDoNothing;
 };
 
-THR_DECLARE class WinInputQueue;
-
 /* Cross-platform window handler class based on GLFW library.
 *  Only one instance of valid and initialized window is accepted.
 */

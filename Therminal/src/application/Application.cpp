@@ -3,8 +3,6 @@
 #include "core/core_common.h"
 #include "core/pty.h"
 #include "core/tty_man.h"
-#include <ft2build.h>
-#include FT_FREETYPE_H
 
 //#define LOG_KEY_EV
 
@@ -12,9 +10,6 @@ namespace Thr
 {
 
 static constexpr size_t InputRingSize = 512;
-
-static struct termios orig_termios;
-static struct winsize size;
 
 Application::_IO Application::_io = { 
 	InputEvTransl(),
@@ -160,27 +155,20 @@ void Application::run()
 		const byte* ptr = _io.output_buff.read(n);
 		_io.output_buff.swap();
 
-		if (n > 0) {
-			writen(STDOUT_FILENO, ptr, n);
-			fflush(stdout);
-
-			_parser.parseToGrid(ptr, n);
-		}
-
 		_window->update();
 	}
 }
 
 void Application::init() 
 {
-	getPrimaryMonitorPhysSize(_monitor_width, _monitor_height);
+	getPrimaryMonitorRes(_monitor_width, _monitor_height);
 	THR_HARD_ASSERT(_monitor_width != -1 && _monitor_height != -1);
 
 	static constexpr float MonitorWidthFac  = 4.6f;
 	static constexpr float MonitorHeightFac = 5.1f;
 
-	const long window_width  = std::lroundf(_monitor_width * MonitorWidthFac);
-	const long window_height = std::lroundf(_monitor_height * MonitorHeightFac);
+	const long window_width  = std::lroundf(_monitor_width * 0.33f);
+	const long window_height = std::lroundf(_monitor_height * 0.5f);
 
 	_window->init(static_cast<uint>(window_width), 
 				  static_cast<uint>(window_height), 
@@ -209,6 +197,15 @@ void Application::init()
 
 void Application::createShellFork()
 {
+#if defined(THR_PLATFORM_WINDOWS)
+
+// WINDOWS IMPLEMENTATION HERE
+
+#else
+
+	static struct termios orig_termios;
+	static struct winsize size;
+
 	pid_t pid;
 	char slave_name[20];
 
@@ -249,9 +246,11 @@ void Application::createShellFork()
 					_fdm);
 
 	_io.worker.spawn();
+
+#endif // THR_PLATFORM_WINDOWS
 }
 
-void Application::getPrimaryMonitorPhysSize(int& width, int& height)
+void Application::getPrimaryMonitorRes(int& width, int& height)
 {
 	width = -1;
 	height = -1;
@@ -266,7 +265,11 @@ void Application::getPrimaryMonitorPhysSize(int& width, int& height)
 	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	THR_HARD_ASSERT_LOG(monitor != nullptr, "Failed to fetch primary monitor");
 
-	glfwGetMonitorPhysicalSize(monitor, &width, &height);
+	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+	THR_HARD_ASSERT_LOG(mode != nullptr, "Failed to fetch mode of the primary monitor");
+
+	width = mode->width;
+	height = mode->height;
 }
 
 } // namespace Thr

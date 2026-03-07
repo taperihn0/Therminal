@@ -1,5 +1,9 @@
 #include "pty.h"
 
+#if defined(THR_PLATFORM_WINDOWS)
+// WINDOWS IMPLEMENTATION HERE
+#else
+
 /* Fragments of that code were rewritten from the book:
 *  "Advanced Programming in the UNIX® Environment: Second Edition"
 *  By W. Richard Stevens, Stephen A. Rago
@@ -185,3 +189,5 @@ pid_t pty_fork(int* ptrfdm, char* slave_name, int slave_namesz,
    *ptrfdm = fdm; /* return fd of master */
    return pid; /* parent returns pid of child */
 }
+
+#endif // THR_PLATFORM_WINDOWS

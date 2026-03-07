@@ -44,6 +44,13 @@ void ThreadWorker::stop()
 
 void ThreadWorker::thrExecution()
 {
+
+#if defined(THR_PLATFORM_WINDOWS)
+
+// WINDOWS IMPLEMENTATION HERE
+
+#else
+
 	int nread;
 
 	byte buff[OutputBuffer::BuffSize];
@@ -78,6 +85,8 @@ void ThreadWorker::thrExecution()
 	/*
 	*  We should terminate.
 	*/
+
+#endif // THR_PLATFORM_WINDOWS
 }
 
 } // namespace Thr

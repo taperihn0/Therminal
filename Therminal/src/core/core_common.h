@@ -1,9 +1,9 @@
 #ifndef _CORE_COMMON_HEADER
 #define _CORE_COMMON_HEADER
 
-#if defined(PHS_PLATFORM_WINDOWS)
-#  error "Windows platform not supported"
-#endif
+#if defined(THR_PLATFORM_WINDOWS)
+// WINDOWS IMPLEMENTATION HERE
+#else
 
 #ifndef _XOPEN_SOURCE
 #  define _XOPEN_SOURCE
@@ -51,5 +51,7 @@ static int writen(int fd, const void* buff, int n)
 #ifdef __cplusplus
 }
 #endif
+
+#endif // THR_PLATFORM_WINDOWS
 
 #endif // _CORE_COMMON_HEADER

@@ -1,14 +1,7 @@
 #pragma once
 
-#if defined(THR_PLATFORM_WINDOWS)
-#  include <windows.h>
-#else
-#  include <unistd.h>
-#endif
-
 #include "Simd.hpp"
 #include "logger/Log.hpp"
-
 #include <memory>
 #include <cstring>
 
@@ -16,16 +9,16 @@ namespace Thr
 {
 
 /* We assume cache-line is fixed and it's equal to 64 bytes */
-static constexpr size_t CachelineSize = 64;
+THR_INTERNAL constexpr size_t CachelineSize = 64;
 
 THR_INLINE size_t getPageSize() 
 {
 #if defined(THR_PLATFORM_WINDOWS)
-   SYSTEM_INFO si;
+	SYSTEM_INFO si;
 	GetSystemInfo(&si);
-   return static_cast<size_t>(si.dwPageSize);
+	return static_cast<size_t>(si.dwPageSize);
 #else
-   return static_cast<size_t>(sysconf(_SC_PAGESIZE));
+	return static_cast<size_t>(sysconf(_SC_PAGESIZE));
 #endif
 }
 
@@ -53,7 +46,7 @@ THR_INLINE void* alignedMemset(void* dst, int ch, size_t cnt)
 	byte* d = reinterpret_cast<byte*>(dst);
 
 #if defined(THR_SIMD_AVX512)
-	ASSERT(cnt % AlignmentBound == 0, "Size must be a multiple of 64");
+	THR_HARD_ASSERT(cnt % AlignmentBound == 0, "Size must be a multiple of 64");
 	__m512i pack8i_ch = _mm512_set1_epi8(ch);
 
 	for (size_t i = 0; i < cnt; i += 64) {
@@ -61,7 +54,7 @@ THR_INLINE void* alignedMemset(void* dst, int ch, size_t cnt)
 	}
 
 #elif defined(THR_SIMD_AVX2)
-	ASSERT(cnt % AlignmentBound == 0, "Size must be a multiple of 32");
+	THR_HARD_ASSERT(cnt % AlignmentBound == 0, "Size must be a multiple of 32");
 	__m256i pack4i_ch = _mm256_set1_epi8(ch);
 
 	for (size_t i = 0; i < cnt; i += 32) {
@@ -69,7 +62,7 @@ THR_INLINE void* alignedMemset(void* dst, int ch, size_t cnt)
 	}
 
 #elif defined(THR_SIMD_SSE2)
-	ASSERT(cnt % AlignmentBound == 0, "Size must be a multiple of 16");
+	THR_HARD_ASSERT(cnt % AlignmentBound == 0, "Size must be a multiple of 16");
 	__m128i pack2i_ch = _mm_set1_epi8(ch);
 
 	for (size_t i = 0; i < cnt; i += 16) {
@@ -98,17 +91,16 @@ THR_INLINE void* alignedMalloc(size_t size, size_t alignment)
 
 THR_INLINE void* pageAlignedMalloc(size_t size) 
 {
-   static const size_t page_size = getPageSize();
-   const size_t page_aligned_size = (size + page_size - 1) & ~(page_size - 1);
+	static const size_t page_size = getPageSize();
+	const size_t page_aligned_size = (size + page_size - 1) & ~(page_size - 1);
 
-   void* m = alignedMalloc(page_aligned_size, page_size);
+	void* m = alignedMalloc(page_aligned_size, page_size);
 
-   if (m == nullptr)
-   {
-      THR_LOG_ERROR("Failed to page-alloc a new memory page");
-   }
+	if (m == nullptr) {
+		THR_LOG_ERROR("Failed to page-alloc a new memory page");
+	}
 
-   return m;
+	return m;
 }
 
 THR_INLINE void alignedFree(void* block) 

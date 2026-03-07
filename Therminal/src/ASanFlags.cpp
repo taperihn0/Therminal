@@ -1,5 +1,5 @@
 
-/* Here we encode Adress Sanitizer flags.
+/* Here we encode Address Sanitizer flags.
 *  We ignore leaks for now, since video drivers seems
 *  to be producing big memory leak log inside the terminal.
 */

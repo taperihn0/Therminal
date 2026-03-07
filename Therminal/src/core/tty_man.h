@@ -1,6 +1,10 @@
 #ifndef _TTY_MAN_HEADER
 #define _TTY_MAN_HEADER
 
+#if defined(THR_PLATFORM_WINDOWS)
+// WINDOWS IMPLEMENTATION HERE
+#else
+
 #include "core_common.h"
 
 #ifdef __cplusplus
@@ -40,5 +44,7 @@ int tty_set(int fd, struct termios* termios, struct winsize* winsize);
 #ifdef __cplusplus
 }
 #endif
+
+#endif // THR_PLATFORM_WINDOWS
 
 #endif // _TTY_MAN_HEADER

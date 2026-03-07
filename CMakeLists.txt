@@ -23,10 +23,11 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 
 if (MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
+	set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}  /std:clatest")
 else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fms-extensions")
+	set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fms-extensions")
 endif()
 
 message(STATUS "Sources found: ${SOURCES}")

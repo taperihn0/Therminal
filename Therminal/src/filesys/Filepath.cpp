@@ -1,4 +1,5 @@
 #include "Filepath.hpp"
+#include <sstream>
 
 namespace Thr 
 {

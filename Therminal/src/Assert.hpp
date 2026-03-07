@@ -23,9 +23,9 @@ THR_INLINE bool __thrfailedAssertion(const char* file, const char* text, int lin
 }
 
 #ifdef THR_RUNTIME_ASSERT_ENABLE
-#	define THR_ASSERT(s)						(void)((s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
-#	define THR_ASSERT_NOT(s)				(void)((!s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
-#	define THR_ASSERT_LOG(s, msg)			(void)((s) or ::__thrfailedAssertion(__FILE__, msg, __LINE__))
+#	define THR_ASSERT(s)		  (void)((s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
+#	define THR_ASSERT_NOT(s)	  (void)((!s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
+#	define THR_ASSERT_LOG(s, msg) (void)((s) or ::__thrfailedAssertion(__FILE__, msg, __LINE__))
 #else // Assertions not specified.
 #	define THR_ASSERT(s) 
 #	define THR_ASSERT_NOT(s)
@@ -33,10 +33,10 @@ THR_INLINE bool __thrfailedAssertion(const char* file, const char* text, int lin
 #endif // THR_RUNTIME_ASSERT_ENABLE
 
 // Universal assertion that cannot be turned off for now
-#define THR_HARD_ASSERT(s)					(void)((s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
-#define THR_HARD_ASSERT_NOT(s)			(void)((!s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
-#define THR_HARD_ASSERT_LOG(s, msg) 	(void)((s) or ::__thrfailedAssertion(__FILE__, msg, __LINE__))
+#define THR_HARD_ASSERT(s)			(void)((s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
+#define THR_HARD_ASSERT_NOT(s)		(void)((!s) or ::__thrfailedAssertion(__FILE__, "Runtime assertion failed", __LINE__))
+#define THR_HARD_ASSERT_LOG(s, msg) (void)((s) or ::__thrfailedAssertion(__FILE__, msg, __LINE__))
 
 // Static assertions doesn't influence runtime performance, so keep them as they are.
-#define THR_STATIC_ASSERT(s)				static_assert(s)
-#define THR_STATIC_ASSERT_LOG(s, msg)	static_assert(s, msg)
+#define THR_STATIC_ASSERT(s)		  static_assert(s)
+#define THR_STATIC_ASSERT_LOG(s, msg) static_assert(s, msg)

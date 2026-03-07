@@ -1,6 +1,10 @@
 #include "tty_man.h"
 #include <errno.h>
 
+#if defined(THR_PLATFORM_WINDOWS)
+// WINDOWS IMPLEMENTATION HERE
+#else
+
 /* Fragments of that code were rewritten from the book:
 *  "Advanced Programming in the UNIX® Environment: Second Edition"
 *  By W. Richard Stevens, Stephen A. Rago
@@ -132,3 +136,5 @@ int tty_set(int fd, struct termios* termios, struct winsize* winsize) {
 
    return 0;
 }
+
+#endif // THR_PLATFORM_WINDOWS

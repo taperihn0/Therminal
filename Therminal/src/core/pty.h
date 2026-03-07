@@ -1,6 +1,10 @@
 #ifndef _PTY_HEADER
 #define _PTY_HEADER
 
+#if defined(THR_PLATFORM_WINDOWS)
+// WINDOWS IMPLEMENTATION HERE
+#else
+
 #include "core_common.h"
 
 #define PTYM_OPENPT_ERR    (-1)
@@ -38,5 +42,7 @@ pid_t pty_fork(int* ptrfdm, char* slave_name, int slave_namesz,
 #ifdef __cplusplus
 }
 #endif
+
+#endif // THR_PLATFORM_WINDOWS
 
 #endif // _PTY_HEADER

@@ -43,7 +43,9 @@ THR_INLINE bool OutputStreamTransl::nextUTF32(char32_t* ch)
     if (!_to_read)
         return false;
 
-    const size_t nread = std::mbrtoc32(ch, _it, _to_read, &_state);
+	THR_HARD_ASSERT(_it != _utf8.end());
+
+    const size_t nread = std::mbrtoc32(ch, std::addressof(*_it), _to_read, &_state);
 
     if (nread == 0) {
         _to_read = 0;

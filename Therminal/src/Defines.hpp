@@ -1,10 +1,16 @@
 #pragma once
 
-/* Window support is not yet implemented, altough we keep 
+#ifdef __GNUC__
+#	define WARNING(x) message x
+#else
+#	define WARNING(x) message(x)
+#endif
+
+/* Window support is not yet implemented, altought we keep 
 *  some features in the codebase that supports Windows OS.
 */
 #if defined(THR_PLATFORM_WINDOWS)
-#	error "Windows platform is not supported"
+#	pragma WARNING("Windows platform lack shell functionalities")
 #endif
 
 #if  __cplusplus >= 202002L
@@ -41,8 +47,8 @@
 #define THR_FALLTHROUGH           [[fallthrough]]
 
 #if defined(THR_STANDARD_20)
-#	define THR_UNLIKELY            [[unlikely]]
-#	define THR_LIKELY              [[likely]]
+#	define THR_UNLIKELY			  [[unlikely]]
+#	define THR_LIKELY			  [[likely]]
 #else
 #	define THR_UNLIKELY
 #	define THR_LIKELY
@@ -51,7 +57,7 @@
 #ifndef __PRETTY_FUNCTION__
 #	ifdef _MSC_VER
 #		define __PRETTY_FUNCTION__ __FUNCSIG__
-#else
+#	else
 #		define __PRETTY_FUNCTION__ __func__
 #	endif
 #endif

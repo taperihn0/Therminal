@@ -4,9 +4,8 @@
 #include "Assert.hpp"
 #include <cstdint>
 #include <limits>
-#include <uchar.h>
+#include <cuchar>
 #include <type_traits>
-#include <uchar.h>
 
 namespace Thr
 {

@@ -1,12 +1,8 @@
 #pragma once
 
-#include "Defines.hpp"
 #include "Assert.hpp"
 #include "Types.hpp"
-#define GLFW_INCLUDE_NONE
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <cmath>
+#include "Headers.hpp"
 
 namespace Thr 
 {
@@ -14,7 +10,7 @@ namespace Thr
 /* Miscellaneous Features */
 
 template <typename T>
-static void markUnused(T&&) {}
+THR_INTERNAL void markUnused(T&&) {}
 
 template <typename T>
 constexpr THR_INLINE T maxof()

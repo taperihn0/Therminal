@@ -103,7 +103,6 @@ bool Window::init(uint width, uint height, const std::string& title)
 
 	glfwMakeContextCurrent(_native_window);
 
-	// _callback_ptrs lifetime is same as the lifetime of *this object.
 	void* user_data = reinterpret_cast<void*>(_user_callback_data.get());
 	glfwSetWindowUserPointer(_native_window, user_data);
 
@@ -303,7 +302,7 @@ void Window::setEventCallbacks()
 			window->__setSuspended(suspend);
 			
 			if (suspend) {
-				THR_LOG_INFO("Window suspended");
+				THR_LOG_DEBUG("Window suspended");
 			}
 
 			callbacks->window_resize_callback(ev);

@@ -25,7 +25,7 @@ public:
 private:
 	void init();
 	void createShellFork();
-	void getPrimaryMonitorPhysSize(int& width, int& height);
+	void getPrimaryMonitorRes(int& width, int& height);
 
 	/* custom event callbacks */
 	static void winErrorCallback(ErrorEvent ev);
