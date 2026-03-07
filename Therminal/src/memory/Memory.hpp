@@ -9,7 +9,7 @@ namespace Thr
 {
 
 /* We assume cache-line is fixed and it's equal to 64 bytes */
-THR_INTERNAL constexpr size_t CachelineSize = 64;
+static constexpr size_t CachelineSize = 64;
 
 THR_INLINE size_t getPageSize() 
 {

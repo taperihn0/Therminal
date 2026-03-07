@@ -11,17 +11,17 @@ namespace Thr
 {
 
 template <typename T1, typename T2>
-constexpr bool is_same = std::is_same_v<std::remove_volatile_t<std::remove_const_t<std::remove_reference_t<T1>>>,
-                                        std::remove_volatile_t<std::remove_const_t<std::remove_reference_t<T2>>>>;
+constexpr bool is_same_v = std::is_same_v<std::remove_volatile_t<std::remove_const_t<std::remove_reference_t<T1>>>,
+                                          std::remove_volatile_t<std::remove_const_t<std::remove_reference_t<T2>>>>;
 
 template <typename T>
-constexpr bool is_integral = std::is_integral_v<T>;
+constexpr bool is_integral_v = std::is_integral_v<T>;
 
 template <typename T>
-constexpr bool is_real = std::is_floating_point_v<T>;
+constexpr bool is_real_v = std::is_floating_point_v<T>;
 
 template <typename T>
-constexpr bool is_numeric = (is_real<T> or is_integral<T>);
+constexpr bool is_numeric_v = is_real_v<T> || is_integral_v<T>;
 
 // Assert IEEE Standard is implemented
 THR_STATIC_ASSERT(std::numeric_limits<float>::is_iec559);

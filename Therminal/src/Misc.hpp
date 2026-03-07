@@ -15,14 +15,14 @@ THR_INTERNAL void markUnused(T&&) {}
 template <typename T>
 constexpr THR_INLINE T maxof()
 {
-   THR_STATIC_ASSERT(is_numeric<T>);
+   THR_STATIC_ASSERT(is_numeric_v<T>);
    return std::numeric_limits<T>::max();
 }
 
 template <typename T>
 constexpr THR_INLINE T minof()
 {
-   THR_STATIC_ASSERT(is_numeric<T>);
+   THR_STATIC_ASSERT(is_numeric_v<T>);
    return std::numeric_limits<T>::lowest();
 }
 

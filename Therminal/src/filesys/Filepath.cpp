@@ -46,9 +46,9 @@ bool FilePath::operator!=(const FilePath& fp) const
    return !(*this == fp);
 }
 
-std::string& FilePath::toStr()
+FilePath::operator std::string() const
 {
-   return _str;
+	return _str;
 }
 
 const std::string& FilePath::toStr() const

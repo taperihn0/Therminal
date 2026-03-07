@@ -28,7 +28,8 @@ public:
    bool               operator==(const FilePath& fp) const;
    bool               operator!=(const FilePath& fp) const;
 
-   std::string&       toStr();
+   explicit			  operator std::string() const;
+
    const std::string& toStr() const;
 
    const char*        toCStr() const;
