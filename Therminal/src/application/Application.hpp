@@ -10,6 +10,7 @@
 #include "io/Worker.hpp"
 #include "screen/Grid.hpp"
 #include "io/OutputParser.hpp"
+#include "gl/TextRender.hpp"
 
 namespace Thr 
 {
@@ -50,6 +51,7 @@ private:
 		ThreadWorker    worker;
 	};
 
+	static _IO 				_io;
 	FilePath                _cwd;
 	std::unique_ptr<Window> _window;
 	int                     _monitor_width;
@@ -58,7 +60,7 @@ private:
 	int                     _fdm;
 	std::shared_ptr<Grid>   _grid;
 	OutputParser			_parser;
-	static _IO 				_io;
+	TextRender				_text_render;
 };
 
 } // namespace Thr

@@ -1,85 +1,175 @@
 #include "TextRender.hpp"
+#include "logger/Log.hpp"
+#include "Utils.hpp"
 
 namespace Thr {
 
-struct ShaderCellInfo {
-	uint32_t id;
-	Col8     fg;
-	Col8     bg;
+struct ShaderCellInfo 
+{
+	uint32_t	 id;
+	glm::u32vec2 pos;
+	Col8		 fg;
+	Col8		 bg;
 };
 
-TextRender::TextRender(TextRenderInfo spec)
-	: _atlas(1024, 1024)
-	, _vao_id(0)
+TextRender::TextRender()
+	: _atlas(1024, 1024, 48)
+	, _vao_id_ptr(nullptr)
+	, _base_vbo_id(0)
 	, _vbo_id(0)
-	, _window_width(spec.window_width)
-	, _window_height(spec.window_height)
-	, _cell_width(spec.cell_width)
-	, _cell_height(spec.cell_height)
-	, _cols(static_cast<int>(_window_width / _cell_width))
-	, _rows(static_cast<int>(_window_height / _cell_height))
+	, _window_width(0)
+	, _window_height(0)
+	, _cell_width(0)
+	, _cell_height(0)
+	, _cols(0)
+	, _rows(0)
 	, _shader(std::make_unique<ShaderProgram>())
+	, _cell_count(0)
+	, _initialized(false)
+{}
+
+void TextRender::init(TextRenderInfo spec)
 {
-	glGenVertexArrays(1, std::addressof(_vao_id));
-	THR_HARD_ASSERT(_vao_id != 0 && glIsVertexArray(_vao_id) == GL_TRUE);
+	if (_initialized) {
+		THR_LOG_ERROR("TextRender subsystem is already initialized, can't initialize again");
+		return;
+	}
+
+	_window_width = spec.window_width;
+	_window_height = spec.window_height;
+
+	_vao_id_ptr = std::make_shared<GLuint>(0);
+
+	glGenVertexArrays(1, _vao_id_ptr.get());
+	glBindVertexArray(*_vao_id_ptr);
+	THR_HARD_ASSERT(*_vao_id_ptr != 0 && glIsVertexArray(*_vao_id_ptr) == GL_TRUE);
+
+	_atlas.init(_vao_id_ptr);
+
+	_atlas.getGlyphPixSize(_cell_width, _cell_height);
+
+	_cols = _window_width / _cell_width;
+	_rows = _window_height / _cell_height;
+
+	glGenBuffers(1, std::addressof(_base_vbo_id));
+	glBindBuffer(GL_ARRAY_BUFFER, _base_vbo_id);
+	THR_HARD_ASSERT(_base_vbo_id != 0 && glIsBuffer(_base_vbo_id) == GL_TRUE);
+
+	static std::array<glm::vec2, 4> vert = {
+		glm::vec2{ 0.f, 0.f },
+		glm::vec2{ 1.f, 0.f },
+		glm::vec2{ 0.f, 1.f },
+		glm::vec2{ 1.f, 1.f }
+	};
+
+	glBufferData(GL_ARRAY_BUFFER, 
+				 sizeof(vert),
+				 reinterpret_cast<GLvoid*>(vert.data()),
+				 GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 
+						  2, GL_FLOAT, GL_FALSE, 
+						  2 * sizeof(float), 
+						  nullptr);
 
 	glGenBuffers(1, std::addressof(_vbo_id));
-	THR_HARD_ASSERT(_vbo_id != 0 && glIsBuffer(_vbo_id) == GL_TRUE);
-
-	glBindVertexArray(_vao_id);
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo_id);
+	THR_HARD_ASSERT(_vbo_id != 0 && glIsBuffer(_vbo_id) == GL_TRUE);
 
 	glBufferData(GL_ARRAY_BUFFER, 
 				 _cols * _rows * sizeof(ShaderCellInfo), 
 				 nullptr, 
 				 GL_DYNAMIC_DRAW);
 
-	glEnableVertexAttribArray(0);
-	glVertexAttribDivisor(0, 1);
-	glVertexAttribIPointer(0, 
-						   1, GL_UNSIGNED_INT, 
-						   sizeof(ShaderCellInfo), 
-						   reinterpret_cast<void*>(offsetof(ShaderCellInfo, id)));
-
 	glEnableVertexAttribArray(1);
 	glVertexAttribDivisor(1, 1);
-	glVertexAttribPointer(1, 
-						  4, GL_UNSIGNED_BYTE, GL_FALSE, 
-						  sizeof(ShaderCellInfo), 
-						  reinterpret_cast<void*>(offsetof(ShaderCellInfo, fg)));
+	glVertexAttribIPointer(1, 
+						   1, GL_UNSIGNED_INT, 
+						   sizeof(ShaderCellInfo), 
+						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, id)));
 
 	glEnableVertexAttribArray(2);
 	glVertexAttribDivisor(2, 1);
-	glVertexAttribPointer(2, 
-						  4, GL_UNSIGNED_BYTE, GL_FALSE, 
-						  sizeof(ShaderCellInfo), 
-						  reinterpret_cast<void*>(offsetof(ShaderCellInfo, bg)));
+	glVertexAttribIPointer(2,
+						   2, GL_UNSIGNED_INT,
+						   sizeof(ShaderCellInfo),
+						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, pos)));
 
-	_atlas.init();
+	glEnableVertexAttribArray(3);
+	glVertexAttribDivisor(3, 1);
+	glVertexAttribIPointer(3, 
+						   3, GL_UNSIGNED_BYTE,
+						   sizeof(ShaderCellInfo), 
+						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, fg)));
+
+	glEnableVertexAttribArray(4);
+	glVertexAttribDivisor(4, 1);
+	glVertexAttribIPointer(4, 
+						   3, GL_UNSIGNED_BYTE,
+						   sizeof(ShaderCellInfo), 
+						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, bg)));
 
 	glBindVertexArray(0);
 
-	_shader->vert.compileStage(FilePath("assets/shaders/AtlasTextShader.vert"));
-	_shader->frag.compileStage(FilePath("assets/shaders/AtlasTextShader.frag"));
+	_shader->vert.init();
+	_shader->frag.init();
+	_shader->prog.init();
+
+	_shader->vert.compileStage(FilePath("Therminal/assets/shaders/TextShader.vert"));
+	_shader->frag.compileStage(FilePath("Therminal/assets/shaders/TextShader.frag"));
 
 	_shader->prog.attachStage(_shader->vert);
 	_shader->prog.attachStage(_shader->frag);
 	_shader->prog.linkProgram();
+
+	const GLenum err = pollGlErrors([](GLenum err) {
+		THR_LOG_ERROR("OpenGL error during TextRender initialization: {}", getGlErrorStr(err));
+	});
+
+	if (err == GL_NO_ERROR) {
+		THR_LOG_INFO("TextRender subsystem initialized successfully");
+	} 
+	else {
+		THR_LOG_ERROR("TextRender subsystem initialization completed with errors");
+	}
+
+	_initialized = true;
 }
 
 TextRender::~TextRender() 
 {
-	THR_HARD_ASSERT(_vao_id != 0 && glIsVertexArray(_vao_id) == GL_TRUE);
-	glDeleteVertexArrays(1, &_vao_id);
+	if (!_initialized)
+		return;
 
-	THR_HARD_ASSERT(_vbo_id != 0 && glIsBuffer(_vbo_id) == GL_TRUE);
-	glDeleteBuffers(1, &_vbo_id);
+	if (_vao_id_ptr != nullptr && glIsVertexArray(*_vao_id_ptr) == GL_TRUE) {
+		glDeleteVertexArrays(1, _vao_id_ptr.get());
+	}
+
+	if (_vbo_id != 0) {
+		glDeleteBuffers(1, std::addressof(_vbo_id));
+	}
+
+	if (_base_vbo_id != 0) {
+		glDeleteBuffers(1, std::addressof(_base_vbo_id));
+	}
 }
 
-void TextRender::submitLines(const Vec<Ptr<Line>>& text) {
+void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text) 
+{
+
+	if (!_initialized) {
+		THR_LOG_ERROR("TextRender subsystem is not initialized, can't submit frame");
+		return;
+	}
+
 	const size_t total_cells = _cols * _rows;
 
-	Vec<ShaderCellInfo> buffer(total_cells); // TODO: preallocate that and reuse every time we got here
+	Vec<ShaderCellInfo> buffer;
+	buffer.reserve(total_cells); // TODO: preallocate that and reuse every time we got here
+
+	uint xpos = 0;
+	uint ypos = 0;
 
 	for (const auto& ln : text) {
 		THR_ASSERT(ln != nullptr);
@@ -99,33 +189,57 @@ void TextRender::submitLines(const Vec<Ptr<Line>>& text) {
 			
 			buffer.push_back(ShaderCellInfo{
 				id,
+				glm::u32vec2{ xpos, ypos },
 				cell.fg,
 				cell.bg
 			});
+
+			xpos += info.advance;
 		}
+
+		ypos += _cell_height;
 	}
 
 	THR_ASSERT(!buffer.empty());
 
-	glBindVertexArray(_vao_id);
+	glBindVertexArray(*_vao_id_ptr);
 
 	glBindBuffer(GL_ARRAY_BUFFER, _vbo_id);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, 
 					buffer.size() * sizeof(ShaderCellInfo), 
-					reinterpret_cast<void*>(buffer.data()));
+					reinterpret_cast<GLvoid*>(buffer.data()));
 
-	glBindVertexArray(0);
+	_cell_count = buffer.size();
+
+	const GLenum err = pollGlErrors([](GLenum err) {
+		THR_LOG_ERROR("OpenGL error during TextRender frame submission: {}", getGlErrorStr(err));
+	});
+
+	if (err != GL_NO_ERROR) {
+		THR_LOG_ERROR("Failed to submit frame of text to TextRender subsystem");
+	}
 }
 
 void TextRender::renderText() const
 {
-	glBindVertexArray(_vao_id);
-	_shader->prog.useProgram();
-	_atlas.bindAtlas();
+	if (!_initialized) {
+		THR_LOG_ERROR("TextRender subsystem is not initialized, can't render frame of text");
+		return;
+	}
 
-	//glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, _cols * _rows);
+	glBindVertexArray(*_vao_id_ptr);
+	_shader->prog.useProgram();
+
+	// TEST
+	_shader->prog.setUniform2<GLuint>("ScreenRes", _window_width, _window_height);
+
+	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(_cell_count));
 
 	glBindVertexArray(0);
+
+	pollGlErrors([](GLenum err) {
+		THR_LOG_ERROR("OpenGL error during TextRender frame rendering: {}", getGlErrorStr(err));
+	});
 }
 
 } // namespace Thr

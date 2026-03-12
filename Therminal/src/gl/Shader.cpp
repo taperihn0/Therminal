@@ -1,5 +1,6 @@
 #include "Shader.hpp"
 #include "filesys/ReadFile.hpp"
+#include "Utils.hpp"
 
 namespace Thr
 {
@@ -7,9 +8,7 @@ namespace Thr
 GLShaderStage::GLShaderStage(ShaderStage stage)
 	: _id(0)
 	, _stage(stage)
-{
-	createStage();
-}
+{}
 
 GLShaderStage::~GLShaderStage()
 {
@@ -46,6 +45,9 @@ GLShaderStage& GLShaderStage::operator=(GLShaderStage&& shader)
 
 void GLShaderStage::compileStage(std::string_view src) 
 {
+	if (!_id)
+		init();
+
 	THR_HARD_ASSERT(glIsShader(_id));
 
 	const GLchar* c_str = src.data();
@@ -63,9 +65,16 @@ void GLShaderStage::compileStage(std::string_view src)
 		std::string log(len, '\0');
 		glGetShaderInfoLog(_id, len, nullptr, log.data());
 
-		THR_LOG_ERROR("Failed to compile shader stage, err: {}", log);
+		THR_LOG_FATAL("Failed to compile shader stage");
+		THR_LOG_FATAL("Output:  \n{}", log);
+
 		return;
 	}
+
+	pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to compile shader stage program of id: {}", _id);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
 }
 
 void GLShaderStage::compileStage(const FilePath& fp)
@@ -75,7 +84,7 @@ void GLShaderStage::compileStage(const FilePath& fp)
 	compileStage(src);
 }
 
-THR_INLINE void GLShaderStage::createStage()
+THR_INLINE void GLShaderStage::init()
 {
 	GLenum gl_stage = 0;
 
@@ -93,7 +102,7 @@ THR_INLINE void GLShaderStage::createStage()
 		gl_stage = GL_GEOMETRY_SHADER;
 		break;
 	case SHADER_STAGE_FRAGMENT:
-		gl_stage = GL_GEOMETRY_SHADER;
+		gl_stage = GL_FRAGMENT_SHADER;
 		break;
 	default:
 		THR_HARD_ASSERT_LOG(false, "Undefined shader stage");
@@ -121,6 +130,12 @@ GLShader::GLShader(GLShader&& shader)
 	shader._id = 0;
 }
 
+void GLShader::init()
+{
+	_id = glCreateProgram();
+	THR_HARD_ASSERT(_id != 0 && glIsProgram(_id) == GL_TRUE);
+}
+
 void GLShader::linkProgram() 
 {
 	THR_HARD_ASSERT(_id != 0 && glIsProgram(_id) == GL_TRUE);
@@ -135,9 +150,19 @@ void GLShader::linkProgram()
 
 		std::string log(len, '\0');
 		glGetProgramInfoLog(_id, len, nullptr, log.data());
-		THR_LOG_ERROR("Failed to link shader program, err: {}", log);
+		THR_LOG_FATAL("Failed to link shader program");
+		THR_LOG_FATAL("Output:  \n{}", log);
 
 		return;
+	}
+
+	const GLenum err = pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to attach shader stage at shader {}", _id);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
+
+	if (err != GL_NO_ERROR) {
+		THR_LOG_ERROR("Failed to link shader program of id: {}", _id);
 	}
 }
 
@@ -145,6 +170,11 @@ void GLShader::useProgram() const
 {
 	THR_HARD_ASSERT(_id != 0 && glIsProgram(_id) == GL_TRUE);
 	glUseProgram(_id);
+
+	pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to use shader program of id: {}", _id);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
 }
 
 void GLShader::attachStage(const GLShaderStage& stage) const
@@ -155,26 +185,194 @@ void GLShader::attachStage(const GLShaderStage& stage) const
 	THR_HARD_ASSERT(_id != 0 && glIsProgram(_id) == GL_TRUE);
 
 	glAttachShader(_id, stage_id);
+
+	const GLenum err = pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to attach shader stage at shader of id: {}", _id);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));	
+	});
+
+	if (err != GL_NO_ERROR) {
+		THR_LOG_ERROR("Failed to attach shader stage at shader of id: {}", _id);
+	}
 }
 
 template <typename T>
-void GLShader::set1(std::string_view name, const T& val) const
+void GLShader::setUniform1(std::string_view name, 
+						   const T val) const
 {
-	if constexpr (is_same_v<T, int>) {
-		glUniform1i(glGetUniformLocation(_id, name.data()), val);
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	const GLint l = glGetUniformLocation(_id, name.data());
+
+	if (l >= 0) {
+		if constexpr (is_same_v<T, GLint>) {
+			glUniform1i(l, val);
+		}
+		else if constexpr (is_same_v<T, GLuint>) {
+			glUniform1ui(l, val);
+		}
+		else if constexpr (is_same_v<T, GLfloat>) {
+			glUniform1f(l, val);
+		}
 	}
-	else if constexpr (is_same_v<T, uint>) {
-		glUniform1ui(glGetUniformLocation(_id, name.data()), val);
-	}
-	else if constexpr (is_same_v<T, float>) {
-		glUniform1f(glGetUniformLocation(_id, name.data()), val);
-	}
-	else if constexpr (is_same_v<T, double>) {
-		glUniform1d(glGetUniformLocation(_id, name.data()), val);
-	}
-	else {
-		THR_STATIC_ASSERT_LOG(false, "Unsupported uniform type");
-	}
+
+	pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to set uniform: {}", name);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
 }
+
+template <typename T>
+void GLShader::setUniform1(std::string_view name,
+						   const T* ptr) const
+{
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	THR_HARD_ASSERT(ptr != nullptr);
+
+	setUniform1(name, ptr[0]);
+}
+
+template <typename T>
+void GLShader::setUniform2(std::string_view name, 
+						   const T val0, const T val1) const
+{
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	const GLint l = glGetUniformLocation(_id, name.data());
+
+	if (l >= 0) {
+		if constexpr (is_same_v<T, int>) {
+			glUniform2i(l, val0, val1);
+		}
+		else if constexpr (is_same_v<T, uint>) {
+			glUniform2ui(l, val0, val1);
+		}
+		else if constexpr (is_same_v<T, float>) {
+			glUniform2f(l, val0, val1);
+		}
+	}
+
+	pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to set uniform: {}", name);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
+}
+
+template <typename T>
+void GLShader::setUniform2(std::string_view name,
+						   const T* ptr) const
+{
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	THR_HARD_ASSERT(ptr != nullptr);
+
+	setUniform1(name, ptr[0], ptr[1]);
+}
+
+template <typename T>
+void GLShader::setUniform3(std::string_view name,
+						   const T val0, const T val1, const T val2) const
+{
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	const GLint l = glGetUniformLocation(_id, name.data());
+
+	if (l >= 0) {
+		if constexpr (is_same_v<T, int>) {
+			glUniform3i(l, val0, val1, val2);
+		}
+		else if constexpr (is_same_v<T, uint>) {
+			glUniform3ui(l, val0, val1, val2);
+		}
+		else if constexpr (is_same_v<T, float>) {
+			glUniform3f(l, val0, val1, val2);
+		}
+	}
+
+	pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to set uniform: {}", name);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
+}
+
+template <typename T>
+void GLShader::setUniform3(std::string_view name,
+						   const T* ptr) const
+{
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	THR_HARD_ASSERT(ptr != nullptr);
+
+	setUniform1(name, ptr[0], ptr[1], ptr[2]);
+}
+
+template <typename T>
+void GLShader::setUniform4(std::string_view name,
+						   const T val0, const T val1, const T val2, const T val3) const
+{
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	const GLint l = glGetUniformLocation(_id, name.data());
+
+	if (l >= 0) {
+		if constexpr (is_same_v<T, int>) {
+			glUniform4i(l, val0, val1, val2, val3);
+		}
+		else if constexpr (is_same_v<T, uint>) {
+			glUniform4ui(l, val0, val1, val2, val3);
+		}
+		else if constexpr (is_same_v<T, float>) {
+			glUniform4f(l, val0, val1, val2, val3);
+		}
+	}
+
+	pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to set uniform: {}", name);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
+}
+
+template <typename T>
+void GLShader::setUniform4(std::string_view name,
+						   const T* ptr) const
+{
+	THR_STATIC_ASSERT((is_same_v<T, GLint> ||
+					   is_same_v<T, GLuint> ||
+					   is_same_v<T, GLfloat>));
+
+	THR_HARD_ASSERT(ptr != nullptr);
+
+	setUniform1(name,
+			    ptr[0], ptr[1],
+			    ptr[2], ptr[3]);
+}
+
+template void GLShader::setUniform1<GLint>(std::string_view, const GLint) const;
+template void GLShader::setUniform1<GLuint>(std::string_view, const GLuint) const;
+template void GLShader::setUniform1<GLfloat>(std::string_view, const GLfloat) const;
+template void GLShader::setUniform2<GLint>(std::string_view, const GLint, const GLint) const;
+template void GLShader::setUniform2<GLuint>(std::string_view, const GLuint, const GLuint) const;
+template void GLShader::setUniform2<GLfloat>(std::string_view, const GLfloat, const GLfloat) const;
+template void GLShader::setUniform3<GLint>(std::string_view, const GLint, const GLint, const GLint) const;
+template void GLShader::setUniform3<GLuint>(std::string_view, const GLuint, const GLuint, const GLuint) const;
+template void GLShader::setUniform3<GLfloat>(std::string_view, const GLfloat, const GLfloat, const GLfloat) const;
+template void GLShader::setUniform4<GLint>(std::string_view, const GLint, const GLint, const GLint, const GLint) const;
+template void GLShader::setUniform4<GLuint>(std::string_view, const GLuint, const GLuint, const GLuint, const GLuint) const;
+template void GLShader::setUniform4<GLfloat>(std::string_view, const GLfloat, const GLfloat, const GLfloat, const GLfloat) const;
 
 } // namespace Thr

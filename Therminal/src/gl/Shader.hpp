@@ -28,16 +28,16 @@ public:
 	GLShaderStage(const GLShaderStage&) = delete;
 	GLShaderStage(GLShaderStage&& shader);
 
+	void init();
+
 	GLShaderStage  operator=(const GLShaderStage&) = delete;
 	GLShaderStage& operator=(GLShaderStage&& shader);
 
 	void compileStage(std::string_view src);
 	void compileStage(const FilePath& fp);
 
-	THR_INLINE GLuint getID() const;
+	THR_INLINE THR_NODISCARD GLuint getID() const;
 private:
-	void createStage();
-
 	GLuint		_id;
 	ShaderStage _stage;
 };
@@ -50,6 +50,8 @@ public:
 	GLShader(const GLShader&) = delete;
 	GLShader(GLShader&& shader);
 
+	void init();
+
 	GLShader operator=(const GLShader&) = delete;
 	GLShader operator=(GLShader&&) = delete;
 
@@ -58,9 +60,38 @@ public:
 	void attachStage(const GLShaderStage& stage) const;
 
 	template <typename T>
-	void set1(std::string_view name, const T& val) const;
+	void setUniform1(std::string_view name, 
+					 const T val) const;
 
-	THR_INLINE GLuint getID() const;
+	template <typename T>
+	void setUniform1(std::string_view name,
+					 const T* ptr) const;
+
+	template <typename T>
+	void setUniform2(std::string_view name, 
+					 const T val0, const T val1) const;
+
+	template <typename T>
+	void setUniform2(std::string_view name,
+					 const T* ptr) const;
+
+	template <typename T>
+	void setUniform3(std::string_view name, 
+					 const T val0, const T val1, const T val2) const;
+
+	template <typename T>
+	void setUniform3(std::string_view name,
+					 const T* ptr) const;
+
+	template <typename T>
+	void setUniform4(std::string_view name, 
+					 const T val0, const T val1, const T val2, const T val3) const;
+
+	template <typename T>
+	void setUniform4(std::string_view name,
+					 const T* ptr) const;
+
+	THR_INLINE THR_NODISCARD GLuint getID() const;
 private:
 	GLuint _id;
 };

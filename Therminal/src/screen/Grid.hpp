@@ -3,6 +3,7 @@
 #include "Line.hpp"
 #include "memory/CircBuff.hpp"
 #include "io/OutputTranslator.hpp"
+#include "gl/TextRender.hpp"
 
 namespace Thr
 {
@@ -12,6 +13,7 @@ class Grid
 public:
     Grid(size_t ln_width);
     void putChar(char32_t c, const EscapeState* state);
+    Vec<Ptr<const Line>> getVisibleLines();// const;
 private:
     static constexpr size_t    _BufSize = 0x10000;
     const size_t               _ln_width;

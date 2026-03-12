@@ -3,6 +3,7 @@
 #include "core/core_common.h"
 #include "core/pty.h"
 #include "core/tty_man.h"
+#include "gl/Utils.hpp"
 
 //#define LOG_KEY_EV
 
@@ -146,14 +147,17 @@ Application::Application(int argc, char* argv[])
 void Application::run() 
 {
 	THR_LOG_INFO("Welcome to Therminal!");
-	glClearColor(0.f, 1.f, 0.f, 1.f);
-	
+	glClearColor(0.1f, 0.1f, 0.1f, 1.f);
+
 	while (_window->isOpen()) {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		int n = 0;
 		const byte* ptr = _io.output_buff.read(n);
 		_io.output_buff.swap();
+
+		_text_render.submitCurrFrame(_grid->getVisibleLines());
+		_text_render.renderText();
 
 		_window->update();
 	}
@@ -167,7 +171,7 @@ void Application::init()
 	static constexpr float MonitorWidthFac  = 4.6f;
 	static constexpr float MonitorHeightFac = 5.1f;
 
-	const long window_width  = std::lroundf(_monitor_width * 0.33f);
+	const long window_width = std::lroundf(_monitor_width * 0.33f);
 	const long window_height = std::lroundf(_monitor_height * 0.5f);
 
 	_window->init(static_cast<uint>(window_width), 
@@ -193,6 +197,11 @@ void Application::init()
 
 	createShellFork();
 	_parser.writeTo(_grid);
+
+	_text_render.init(TextRenderInfo{
+		_window->getWidth(),
+		_window->getHeight(),
+	});
 }
 
 void Application::createShellFork()

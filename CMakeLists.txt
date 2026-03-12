@@ -40,21 +40,25 @@ set(GLFW_INSTALL 		OFF CACHE BOOL "" FORCE)
 set(FT_WITH_ZLIB 		OFF CACHE BOOL "" FORCE)
 set(FT_WITH_PNG 		OFF CACHE BOOL "" FORCE)
 set(FT_WITH_HARFBUZZ	OFF CACHE BOOL "" FORCE)
+set(GLM_BUILD_TESTS     OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS   OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glfw)
 add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glad)
 add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/freetype)
+add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glm)
 
 target_link_libraries(Therminal PUBLIC 
 	glfw	
 	glad
 	freetype
+	glm::glm
 )
 
 target_compile_definitions(Therminal PUBLIC 
 	$<$<CONFIG:Debug>:THR_DEBUG>
 	$<$<CONFIG:Release>:THR_RELEASE>
-	$<$<CONFIG:RelWithDebInfo>:THR_RELEASE>
+	$<$<CONFIG:RelWithDebInfo>:THR_RELEASE_DEBUG_INFO>
 )
 
 set_target_properties(Therminal PROPERTIES

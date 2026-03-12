@@ -1,6 +1,7 @@
 #include "Atlas.hpp"
 #include "logger/Log.hpp"
 #include "memory/Memory.hpp"
+#include "Utils.hpp"
 
 namespace Thr
 {
@@ -8,27 +9,46 @@ namespace Thr
 /* Store UV coordinates for each glyph for indexing Atlas texture
 *  inside shader program.
 */
-struct AtlasUV {
-	float32_t u0, v0;
-	float32_t u1, v1;
+struct GlyphTextureUVs 
+{
+	THR_FORCEINLINE GlyphTextureUVs(float32_t u0, 
+									float32_t v0, 
+									float32_t u1, 
+									float32_t v1);
+	glm::vec4 v;
 };
 
-FontAtlas::FontAtlas()
-	: FontAtlas(1024, 1024)
+THR_FORCEINLINE GlyphTextureUVs::GlyphTextureUVs(float32_t u0, 
+												 float32_t v0, 
+												 float32_t u1, 
+												 float32_t v1)
+	: v(u0, v0, u1, v1)
 {}
 
-FontAtlas::FontAtlas(uint atlas_width, uint atlas_height)
-	: _tex_id(0)
-	, _tbo_buf_id(0)
+FontAtlas::FontAtlas()
+	: FontAtlas(DefaultAtlasWidth, 
+				DefaultAtlasHeight, 
+				DefaultGlyphHeight)
+{}
+
+FontAtlas::FontAtlas(uint atlas_width, 
+					 uint atlas_height,
+					 uint glyph_height)
+	: _atlas_tex_id(0)
+	, _tb_buf_id(0)
+	, _tb_tex_id(0)
 	, _ft_lib(nullptr)
 	, _ft_face(nullptr)
-	, _curr_glyph_id(0)
+	, _glyph_id(0)
 	, _atlas_width(atlas_width)
 	, _atlas_height(atlas_height)
-	, _glyph_per_tbo(4096)
+	, _glyph_width(0)
+	, _glyph_height(glyph_height)
+	, _glyph_per_tb(0)
 	, _atlas_x_offset(0)
 	, _atlas_y_offset(0)
-	, _glyph_height(48)
+	, _vao(nullptr)
+	, _initialized(false)
 {}
 
 FontAtlas::~FontAtlas()
@@ -38,57 +58,73 @@ FontAtlas::~FontAtlas()
 
 FontAtlas::FontAtlas(FontAtlas&& atlas)
 	: _glyph_map(std::move(atlas._glyph_map))
-	, _tex_id(atlas._tex_id)
-	, _tbo_buf_id(atlas._tbo_buf_id)
+	, _atlas_tex_id(atlas._atlas_tex_id)
+	, _tb_buf_id(atlas._tb_buf_id)
+	, _tb_tex_id(atlas._tb_tex_id)
 	, _ft_lib(atlas._ft_lib)
 	, _ft_face(atlas._ft_face)
-	, _curr_glyph_id(atlas._curr_glyph_id)
+	, _glyph_id(atlas._glyph_id)
 	, _atlas_width(atlas._atlas_width)
 	, _atlas_height(atlas._atlas_height)
-	, _glyph_per_tbo(atlas._glyph_per_tbo)
+	, _glyph_width(0)
+	, _glyph_height(atlas._glyph_height)
+	, _glyph_per_tb(atlas._glyph_per_tb)
 	, _atlas_x_offset(atlas._atlas_x_offset)
 	, _atlas_y_offset(atlas._atlas_y_offset)
-	, _glyph_height(atlas._glyph_height)
+	, _vao(std::move(atlas._vao))
+	, _initialized(false)
 {
-	atlas._tex_id = 0;
-	atlas._tbo_buf_id = 0;
+	atlas._atlas_tex_id = 0;
+	atlas._tb_buf_id = 0;
+	atlas._tb_tex_id = 0;
 	atlas._ft_lib = nullptr;
 	atlas._ft_face = nullptr;
-	atlas._curr_glyph_id = 0;
+	atlas._glyph_id = 0;
+	atlas._vao = nullptr;
 }
 
 FontAtlas& FontAtlas::operator=(FontAtlas&& atlas)
 {
 	clear();
 	_glyph_map = std::move(atlas._glyph_map);
-	_tex_id = atlas._tex_id;
-	atlas._tex_id = 0;
+	_atlas_tex_id = atlas._atlas_tex_id;
+	atlas._atlas_tex_id = 0;
+	_tb_buf_id = atlas._tb_buf_id;
+	atlas._tb_buf_id = 0;
+	_tb_tex_id = atlas._tb_tex_id;
+	atlas._tb_tex_id = 0;
 	_ft_lib = atlas._ft_lib;
 	atlas._ft_lib = nullptr;
 	_ft_face = atlas._ft_face;
 	atlas._ft_face = nullptr;
-	_curr_glyph_id = atlas._curr_glyph_id;
-	atlas._curr_glyph_id = 0;
+	_glyph_id = atlas._glyph_id;
+	atlas._glyph_id = 0;
 	THR_HARD_ASSERT(_atlas_width == atlas._atlas_width);
 	THR_HARD_ASSERT(_atlas_height == atlas._atlas_height);
-	THR_HARD_ASSERT(_glyph_per_tbo == atlas._glyph_per_tbo);
+	THR_HARD_ASSERT(_glyph_per_tb == atlas._glyph_per_tb);
 	_atlas_x_offset = atlas._atlas_x_offset;
 	atlas._atlas_x_offset = 0;
 	_atlas_y_offset = atlas._atlas_y_offset;
 	atlas._atlas_y_offset = 0;
+	THR_HARD_ASSERT(_glyph_width == atlas._glyph_width);
 	THR_HARD_ASSERT(_glyph_height == atlas._glyph_height);
+	_vao = std::move(atlas._vao);
+	atlas._vao = nullptr;
+	_initialized = atlas._initialized;
+	atlas._initialized = false;
 	return *this;
 }
 
 void FontAtlas::addGlyph(char32_t codepoint)
 {
-	GLint vao = 0;
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
-
-	if (!vao) {
-		THR_LOG_ERROR("No VAO is currently bound. Cannot initialize FontAtlas.");
+	if (!_initialized) {
+		THR_LOG_ERROR("FontAtlas subsystem is not initialized, can't add glyph");
 		return;
 	}
+
+	THR_HARD_ASSERT(_vao != nullptr && glIsVertexArray(*_vao) == GL_TRUE);
+
+	glBindVertexArray(*_vao);
 
 	if (_glyph_map.count(codepoint))
 		return;
@@ -111,9 +147,9 @@ void FontAtlas::addGlyph(char32_t codepoint)
 		_atlas_y_offset += _glyph_height + 1;
 	}
 
-	THR_HARD_ASSERT(_tex_id != 0 && glIsTexture(_tex_id) == GL_TRUE);
+	THR_HARD_ASSERT(_atlas_tex_id != 0 && glIsTexture(_atlas_tex_id) == GL_TRUE);
 
-	glBindTexture(GL_TEXTURE_2D, _tex_id);
+	glBindTexture(GL_TEXTURE_2D, _atlas_tex_id);
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexSubImage2D(GL_TEXTURE_2D, 
@@ -124,22 +160,23 @@ void FontAtlas::addGlyph(char32_t codepoint)
 					g->bitmap.rows, 
 					GL_RED, 
 					GL_UNSIGNED_BYTE,
-					reinterpret_cast<const void*>(g->bitmap.buffer));
+					reinterpret_cast<const GLvoid*>(g->bitmap.buffer));
 
-	const AtlasUV glyph_uv = {
-		static_cast<float32_t>(_atlas_x_offset)					  / _atlas_width,
-		static_cast<float32_t>(_atlas_y_offset)					  / _atlas_height,
-		static_cast<float32_t>(_atlas_x_offset + g->bitmap.width) / _atlas_width,
-		static_cast<float32_t>(_atlas_y_offset + g->bitmap.rows)  / _atlas_height
-	};
+	const GlyphTextureUVs glyph_uv(
+		 static_cast<float32_t>(_atlas_x_offset) / _atlas_width,
+		 static_cast<float32_t>(_atlas_y_offset) / _atlas_height,
+		 static_cast<float32_t>(_atlas_x_offset + g->bitmap.width) / _atlas_width,
+		 static_cast<float32_t>(_atlas_y_offset + g->bitmap.rows) / _atlas_height
+	);
 
-	const uint32_t glyph_index = _curr_glyph_id;
+	glBindBuffer(GL_TEXTURE_BUFFER, _tb_buf_id);
 
-	glBindTexture(GL_TEXTURE_BUFFER, _tbo_buf_id);
+	const uint32_t glyph_index = _glyph_id;
+
 	glBufferSubData(GL_TEXTURE_BUFFER, 
-				    glyph_index * sizeof(AtlasUV),
-					sizeof(AtlasUV), 
-					reinterpret_cast<const void*>(std::addressof(glyph_uv)));
+				    glyph_index * sizeof(GlyphTextureUVs),
+					sizeof(GlyphTextureUVs), 
+					reinterpret_cast<const GLvoid*>(std::addressof(glyph_uv)));
 
 	const GlyphInfo glyph_info = {
 		g->bitmap.width,
@@ -147,17 +184,31 @@ void FontAtlas::addGlyph(char32_t codepoint)
 		g->bitmap_left,
 		g->bitmap_top,
 		g->advance.x >> 6,
-		_curr_glyph_id++
+		_glyph_id++
 	};
 
 	_glyph_map[codepoint] = glyph_info;
 	_atlas_x_offset += g->bitmap.width + 1;
 
 	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindVertexArray(0);
+
+	const GLenum err = pollGlErrors([](GLenum err) {
+		THR_LOG_ERROR("OpenGL error while adding a new glyph to FontAtlas: {}", getGlErrorStr(err));
+	});
+
+	if (err != GL_NO_ERROR) {
+		THR_LOG_DEBUG("FontAtlas adding glyph resulted in OpenGL error");
+	}
 }
 
 uint32_t FontAtlas::getGlyphInfo(char32_t codepoint, GlyphInfo& info) const
 {
+	if (!_initialized) {
+		THR_LOG_ERROR("FontAtlas subsystem is not initialized, can't get glyph info");
+		return (info.id = static_cast<uint32_t>(-1));
+	}
+
 	const auto it = _glyph_map.find(codepoint);
 
 	if (it != _glyph_map.end()) { // found
@@ -171,21 +222,35 @@ uint32_t FontAtlas::getGlyphInfo(char32_t codepoint, GlyphInfo& info) const
 
 void FontAtlas::bindAtlas() const
 {
-	GLint vao = 0;
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
-
-	if (!vao) {
-		THR_LOG_ERROR("No VAO is currently bound. Cannot initialize FontAtlas.");
+	if (!_initialized) {
+		THR_LOG_ERROR("FontAtlas subsystem is not initialized, can't bind atlas");
 		return;
 	}
 
-	THR_HARD_ASSERT(_tex_id != 0 && glIsTexture(_tex_id) == GL_TRUE);
+	THR_ASSERT(_vao != nullptr && glIsVertexArray(*_vao) == GL_TRUE);
+
+	GLint vao_bound = 0;
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao_bound);
+
+	if (vao_bound > 0 && vao_bound != *_vao) {
+		THR_LOG_ERROR("VAO already bound for Atlas bind call");
+		return;
+	}
+
+	glBindVertexArray(*_vao);
+
+	THR_HARD_ASSERT(_atlas_tex_id != 0 && glIsTexture(_atlas_tex_id) == GL_TRUE);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, _tex_id);
-
+	glBindTexture(GL_TEXTURE_2D, _atlas_tex_id);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_BUFFER, _tbo_tex_id);
+	glBindTexture(GL_TEXTURE_BUFFER, _tb_tex_id);
+
+	glBindVertexArray(0);
+
+	pollGlErrors([](GLenum err) {
+		THR_LOG_ERROR("OpenGL error during FontAtlas binding: {}", getGlErrorStr(err));
+	});
 }
 
 void FontAtlas::unbindAtlas() const
@@ -193,64 +258,44 @@ void FontAtlas::unbindAtlas() const
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-uint FontAtlas::getActiveTextureUnit() const
+GLenum FontAtlas::getActiveTextureUnit() const
 {
-	return 0; // Since we always bind to GL_TEXTURE0 for the texture
+	// Since we always bind to GL_TEXTURE0 for the texture atlas
+	return GL_TEXTURE0;
 }
 
-uint FontAtlas::getActiveTextureBuffer() const
+GLenum FontAtlas::getActiveTextureBufferUnit() const
 {
-	return 1; // Since we always bind to GL_TEXTURE1 for the texture buffer
+	// Since we always bind to GL_TEXTURE1 for the texture lookup buffer
+	return GL_TEXTURE1;
 }
 
-void FontAtlas::init()
+void FontAtlas::getGlyphPixSize(uint& width, uint& height) const
 {
-	GLint vao = 0;
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
-
-	if (!vao) {
-		THR_LOG_ERROR("No VAO is currently bound. Cannot initialize FontAtlas.");
+	if (!_initialized) {
+		THR_LOG_ERROR("FontAtlas subsystem is not initialized, can't get glyph pixel size");
+		width = 0;
+		height = 0;
 		return;
 	}
 
-	THR_HARD_ASSERT(_tex_id == 0 && 
-					_tbo_buf_id == 0 && 
-					_ft_lib == nullptr && 
-					_ft_face == nullptr);
+	width = _glyph_width;
+	height = _glyph_height;
+}
 
-	glGenTextures(1, std::addressof(_tex_id));
-	THR_HARD_ASSERT(_tex_id != 0 && glIsTexture(_tex_id) == GL_TRUE);
-	
-	glBindTexture(GL_TEXTURE_2D, _tex_id);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_R8, 1024, 1024);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glGenBuffers(1, &_tbo_buf_id);
-	glBindBuffer(GL_TEXTURE_BUFFER, _tbo_buf_id);
-
-	THR_HARD_ASSERT(_tbo_buf_id != 0 && glIsTexture(_tbo_buf_id) == GL_TRUE);
-	glBindTexture(GL_TEXTURE_BUFFER, _tbo_buf_id);
-	glBufferData(GL_TEXTURE_BUFFER, _glyph_per_tbo * sizeof(AtlasUV), nullptr, GL_DYNAMIC_DRAW);
-
-	glGenTextures(1, &_tbo_tex_id);
-	glBindTexture(GL_TEXTURE_BUFFER, _tbo_tex_id);
-	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, _tbo_buf_id);
-
-	glBindTexture(GL_TEXTURE_BUFFER, 0);
+void FontAtlas::init(std::shared_ptr<GLuint> vao)
+{
+	if (_initialized) {
+		THR_LOG_ERROR("FontAtlas subsystem is already initialized, can't initialize again");
+		return;
+	}
 
 	if (FT_Init_FreeType(std::addressof(_ft_lib)) != 0) {
 		THR_LOG_ERROR("Failed to initialize FreeType library");
 		return;
 	}
 
-	if (FT_New_Face(_ft_lib, "assets/fonts/DejaVuSansMono.ttf", 0, std::addressof(_ft_face)) != 0) {
+	if (FT_New_Face(_ft_lib, "Therminal/assets/fonts/DejaVuSansMono.ttf", 0, std::addressof(_ft_face)) != 0) {
 		THR_LOG_ERROR("Failed to load font face");
 		return;
 	}
@@ -266,25 +311,86 @@ void FontAtlas::init()
 		THR_LOG_ERROR("Failed to set pixel size for font face");
 		return;
 	}
+
+	_glyph_width = _ft_face->size->metrics.max_advance >> 6;
+
+	_glyph_per_tb = static_cast<uint>(_atlas_width / _glyph_width) *
+					static_cast<uint>(_atlas_height / _glyph_height);
+
+	THR_ASSERT(vao != nullptr);
+
+	GLint vao_bound = 0;
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao_bound);
+
+	if (vao_bound > 0 && vao_bound != *vao) {
+		THR_LOG_ERROR("VAO already bound for Atlas initialization");
+		return;
+	}
+
+	_vao = std::move(vao);
+
+	glBindVertexArray(*_vao);
+	THR_HARD_ASSERT(glIsVertexArray(*_vao) == GL_TRUE);
+
+	glGenTextures(1, std::addressof(_atlas_tex_id));
+	glBindTexture(GL_TEXTURE_2D, _atlas_tex_id);
+	THR_HARD_ASSERT(_atlas_tex_id != 0 && glIsTexture(_atlas_tex_id) == GL_TRUE);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_R8, _atlas_width, _atlas_height);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glGenBuffers(1, std::addressof(_tb_buf_id));
+	glBindBuffer(GL_TEXTURE_BUFFER, _tb_buf_id);
+	THR_HARD_ASSERT(_tb_buf_id != 0 && glIsBuffer(_tb_buf_id) == GL_TRUE);
+
+	glBufferData(GL_TEXTURE_BUFFER, 
+				 _glyph_per_tb * sizeof(GlyphTextureUVs), 
+				 nullptr, 
+				 GL_DYNAMIC_DRAW);
+
+	glGenTextures(1, std::addressof(_tb_tex_id));
+	glBindTexture(GL_TEXTURE_BUFFER, _tb_tex_id);
+	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, _tb_buf_id);
+
+	glBindTexture(GL_TEXTURE_BUFFER, 0);
+	glBindVertexArray(0);
+
+	const GLenum err = pollGlErrors([](GLenum err) {
+		THR_LOG_ERROR("OpenGL error during FontAtlas initialization: {}", getGlErrorStr(err));
+	});
+
+	if (err != GL_NO_ERROR) {
+		THR_LOG_DEBUG("FontAtlas initializing resulted in OpenGL error");
+	}
+
+	_initialized = true;
 }
 
 THR_INLINE void FontAtlas::clear()
 {
-	if (_tex_id != 0 && glIsTexture(_tex_id) == GL_TRUE) {
-		glDeleteTextures(1, std::addressof(_tex_id));
+	if (_atlas_tex_id != 0 && glIsTexture(_atlas_tex_id) == GL_TRUE) {
+		glDeleteTextures(1, std::addressof(_atlas_tex_id));
 	}
 
-	if (_tbo_buf_id != 0 && glIsBuffer(_tbo_buf_id) == GL_TRUE) {
-		glDeleteBuffers(1, std::addressof(_tbo_buf_id));
+	if (_tb_buf_id != 0 && glIsBuffer(_tb_buf_id) == GL_TRUE) {
+		glDeleteBuffers(1, std::addressof(_tb_buf_id));
+	}
+
+	if (_ft_face != nullptr) {
+		FT_Done_Face(_ft_face);
 	}
 
 	if (_ft_lib != nullptr) {
 		FT_Done_FreeType(_ft_lib);
 	}
 
-	if (_ft_face != nullptr) {
-		FT_Done_Face(_ft_face);
-	}
+	_initialized = false;
 }
 
 } // namespace Thr
