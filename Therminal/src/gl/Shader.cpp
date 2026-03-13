@@ -8,6 +8,7 @@ namespace Thr
 GLShaderStage::GLShaderStage(ShaderStage stage)
 	: _id(0)
 	, _stage(stage)
+	, _compiled(false)
 {}
 
 GLShaderStage::~GLShaderStage()
@@ -66,15 +67,21 @@ void GLShaderStage::compileStage(std::string_view src)
 		glGetShaderInfoLog(_id, len, nullptr, log.data());
 
 		THR_LOG_FATAL("Failed to compile shader stage");
-		THR_LOG_FATAL("Output:  \n{}", log);
+		THR_LOG_FATAL("Output:");
+		THR_LOG_FATAL("{}", log);
 
 		return;
 	}
 
-	pollGlErrors([&](GLenum err) {
+	const GLenum err = pollGlErrors([&](GLenum err) {
 		THR_LOG_ERROR("Failed to compile shader stage program of id: {}", _id);
 		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
 	});
+
+	if (err != GL_NO_ERROR) {
+		THR_LOG_ERROR("Failed to compile shader program of id: {}", _id);
+	} 
+	else _compiled = true;
 }
 
 void GLShaderStage::compileStage(const FilePath& fp)
@@ -150,8 +157,10 @@ void GLShader::linkProgram()
 
 		std::string log(len, '\0');
 		glGetProgramInfoLog(_id, len, nullptr, log.data());
+		
 		THR_LOG_FATAL("Failed to link shader program");
-		THR_LOG_FATAL("Output:  \n{}", log);
+		THR_LOG_FATAL("Output:");
+		THR_LOG_FATAL("{}", log);
 
 		return;
 	}
@@ -163,7 +172,8 @@ void GLShader::linkProgram()
 
 	if (err != GL_NO_ERROR) {
 		THR_LOG_ERROR("Failed to link shader program of id: {}", _id);
-	}
+	} 
+	else _linked = true;
 }
 
 void GLShader::useProgram() const 

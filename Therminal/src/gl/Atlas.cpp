@@ -183,7 +183,7 @@ void FontAtlas::addGlyph(char32_t codepoint)
 		g->bitmap.rows,
 		g->bitmap_left,
 		g->bitmap_top,
-		g->advance.x >> 6,
+		static_cast<int>(g->advance.x >> 6),
 		_glyph_id++
 	};
 
@@ -230,9 +230,9 @@ void FontAtlas::bindAtlas() const
 	THR_ASSERT(_vao != nullptr && glIsVertexArray(*_vao) == GL_TRUE);
 
 	GLint vao_bound = 0;
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao_bound);
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, std::addressof(vao_bound));
 
-	if (vao_bound > 0 && vao_bound != *_vao) {
+	if (vao_bound > 0 && static_cast<GLuint>(vao_bound) != *_vao) {
 		THR_LOG_ERROR("VAO already bound for Atlas bind call");
 		return;
 	}
@@ -240,10 +240,11 @@ void FontAtlas::bindAtlas() const
 	glBindVertexArray(*_vao);
 
 	THR_HARD_ASSERT(_atlas_tex_id != 0 && glIsTexture(_atlas_tex_id) == GL_TRUE);
-
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(getActiveTextureUnit());
 	glBindTexture(GL_TEXTURE_2D, _atlas_tex_id);
-	glActiveTexture(GL_TEXTURE1);
+
+	THR_HARD_ASSERT(_tb_tex_id != 0 && glIsTexture(_tb_tex_id) == GL_TRUE);
+	glActiveTexture(getActiveTextureBufferUnit());
 	glBindTexture(GL_TEXTURE_BUFFER, _tb_tex_id);
 
 	glBindVertexArray(0);
@@ -320,9 +321,9 @@ void FontAtlas::init(std::shared_ptr<GLuint> vao)
 	THR_ASSERT(vao != nullptr);
 
 	GLint vao_bound = 0;
-	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao_bound);
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, std::addressof(vao_bound));
 
-	if (vao_bound > 0 && vao_bound != *vao) {
+	if (vao_bound > 0 && static_cast<GLuint>(vao_bound) != *vao) {
 		THR_LOG_ERROR("VAO already bound for Atlas initialization");
 		return;
 	}

@@ -37,9 +37,11 @@ public:
 	void compileStage(const FilePath& fp);
 
 	THR_NODISCARD THR_INLINE GLuint getID() const;
+	THR_NODISCARD THR_INLINE bool   isCompiled() const;
 private:
 	GLuint		_id;
 	ShaderStage _stage;
+	bool 		_compiled;
 };
 
 class GLShader
@@ -92,11 +94,15 @@ public:
 					 const T* ptr) const;
 
 	THR_NODISCARD THR_INLINE GLuint getID() const;
+	THR_NODISCARD THR_INLINE GLuint isLinked() const;
 private:
 	GLuint _id;
+	bool   _linked;
 };
 
 THR_INLINE GLuint GLShaderStage::getID() const { return _id; }
+THR_INLINE bool   GLShaderStage::isCompiled() const { return _compiled; }
 THR_INLINE GLuint GLShader::getID()		 const { return _id; }
+THR_INLINE GLuint GLShader::isLinked() const   { return _linked; }
 
 } // namespace Thr

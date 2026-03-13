@@ -6,14 +6,14 @@ namespace Thr {
 
 struct ShaderCellInfo 
 {
-	uint32_t	 id;
 	glm::u32vec2 pos;
+	uint32_t	 id;
 	Col8		 fg;
 	Col8		 bg;
 };
 
 TextRender::TextRender()
-	: _atlas(1024, 1024, 48)
+	: _atlas(128, 128, 48)
 	, _vao_id_ptr(nullptr)
 	, _base_vbo_id(0)
 	, _vbo_id(0)
@@ -119,11 +119,15 @@ void TextRender::init(TextRenderInfo spec)
 	_shader->prog.init();
 
 	_shader->vert.compileStage(FilePath("Therminal/assets/shaders/TextShader.vert"));
+	THR_HARD_ASSERT(_shader->vert.isCompiled());
+
 	_shader->frag.compileStage(FilePath("Therminal/assets/shaders/TextShader.frag"));
+	THR_HARD_ASSERT(_shader->frag.isCompiled());
 
 	_shader->prog.attachStage(_shader->vert);
 	_shader->prog.attachStage(_shader->frag);
 	_shader->prog.linkProgram();
+	THR_HARD_ASSERT(_shader->prog.isLinked());
 
 	const GLenum err = pollGlErrors([](GLenum err) {
 		THR_LOG_ERROR("OpenGL error during TextRender initialization: {}", getGlErrorStr(err));
@@ -159,7 +163,6 @@ TextRender::~TextRender()
 
 void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text) 
 {
-
 	if (!_initialized) {
 		THR_LOG_ERROR("TextRender subsystem is not initialized, can't submit frame");
 		return;
@@ -190,13 +193,14 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 			}
 			
 			buffer.push_back(ShaderCellInfo{
-				id,
 				glm::u32vec2{ xpos, ypos },
+				id,
 				cell.fg,
 				cell.bg
 			});
 
-			xpos += info.advance;
+			THR_ASSERT(info.advance == static_cast<int>(_cell_width));
+			xpos += _cell_width;
 		}
 
 		ypos += _cell_height;
@@ -233,11 +237,15 @@ void TextRender::renderText() const
 		return;
 	}
 
+	_atlas.bindAtlas();
+
 	glBindVertexArray(*_vao_id_ptr);
 	_shader->prog.useProgram();
 
-	// TEST
-	_shader->prog.setUniform2<GLuint>("ScreenRes", _window_width, _window_height);
+	_shader->prog.setUniform2<GLuint>("ScreenResPix", _window_width, _window_height);
+	_shader->prog.setUniform2<GLuint>("CellSizePix",  _cell_width, _cell_height);
+	_shader->prog.setUniform1<GLint>("AtlasUVsLookup", 1);//_atlas.getActiveTextureBufferUnit());
+	_shader->prog.setUniform1<GLint>("AtlasTexture", 0);//_atlas.getActiveTextureUnit());
 
 	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(_cell_count));
 

@@ -1,16 +1,13 @@
 #version 330 core
 
+in vec2 TexCoords;
+
 out vec4 FragColor;
 
-//in int  id;
-//in vec2 vert;
-//in vec4 fg;
-//in vec4 bg;
-
-//uniform samplerBuffer char_buffer;
-//uniform sampler2D     atlas_texture;
+uniform sampler2D AtlasTexture;
 
 void main()
 {
-	FragColor = vec4(0.5, 0.5, 0.1, 1.0);
+	float alpha = texture(AtlasTexture, TexCoords).r;
+	FragColor = alpha > 0. ? vec4(1., 1., 1., 1.0) : vec4(0., 0., 0., 1.); 
 }
