@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common.hpp"
+#include "memory/Memory.hpp"
 #include <unordered_map>
 
 namespace Thr

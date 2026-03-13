@@ -36,7 +36,7 @@ public:
 	void compileStage(std::string_view src);
 	void compileStage(const FilePath& fp);
 
-	THR_INLINE THR_NODISCARD GLuint getID() const;
+	THR_NODISCARD THR_INLINE GLuint getID() const;
 private:
 	GLuint		_id;
 	ShaderStage _stage;
@@ -91,7 +91,7 @@ public:
 	void setUniform4(std::string_view name,
 					 const T* ptr) const;
 
-	THR_INLINE THR_NODISCARD GLuint getID() const;
+	THR_NODISCARD THR_INLINE GLuint getID() const;
 private:
 	GLuint _id;
 };

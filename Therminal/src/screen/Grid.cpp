@@ -30,6 +30,7 @@ void Grid::putChar(char32_t c, const EscapeState* state)
 Vec<Ptr<const Line>> Grid::getVisibleLines()// const
 {
     // TODO
+    _ln_buf[0].clear();
     _ln_buf[0].putChar('X', nullptr);
     return Vec<Ptr<const Line>>{ _ln_buf.data() };
 }

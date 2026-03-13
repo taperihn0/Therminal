@@ -21,6 +21,8 @@ public:
     Line() = default;
     Line(size_t width);
     
+    void clear();
+
     void resize(size_t width);
     void putChar(char32_t ch, const EscapeState* state);
 

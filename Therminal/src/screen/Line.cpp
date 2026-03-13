@@ -11,6 +11,11 @@ Line::Line(size_t width)
     _ln.reserve(_width);
 }
 
+void Line::clear()
+{
+    _ln.clear();
+}
+
 void Line::resize(size_t width)
 {
     THR_HARD_ASSERT_LOG(width <= _WidthLimit, "Invalid width value");

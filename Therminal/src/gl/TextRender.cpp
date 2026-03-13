@@ -41,8 +41,6 @@ void TextRender::init(TextRenderInfo spec)
 	_vao_id_ptr = std::make_shared<GLuint>(0);
 
 	glGenVertexArrays(1, _vao_id_ptr.get());
-	glBindVertexArray(*_vao_id_ptr);
-	THR_HARD_ASSERT(*_vao_id_ptr != 0 && glIsVertexArray(*_vao_id_ptr) == GL_TRUE);
 
 	_atlas.init(_vao_id_ptr);
 
@@ -50,6 +48,9 @@ void TextRender::init(TextRenderInfo spec)
 
 	_cols = _window_width / _cell_width;
 	_rows = _window_height / _cell_height;
+
+	glBindVertexArray(*_vao_id_ptr);
+	THR_HARD_ASSERT(*_vao_id_ptr != 0 && glIsVertexArray(*_vao_id_ptr) == GL_TRUE);
 
 	glGenBuffers(1, std::addressof(_base_vbo_id));
 	glBindBuffer(GL_ARRAY_BUFFER, _base_vbo_id);
@@ -68,6 +69,7 @@ void TextRender::init(TextRenderInfo spec)
 				 GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
+
 	glVertexAttribPointer(0, 
 						  2, GL_FLOAT, GL_FALSE, 
 						  2 * sizeof(float), 
@@ -128,7 +130,7 @@ void TextRender::init(TextRenderInfo spec)
 	});
 
 	if (err == GL_NO_ERROR) {
-		THR_LOG_INFO("TextRender subsystem initialized successfully");
+		THR_LOG_INFO("TextRender subsystem initialization completed");
 	} 
 	else {
 		THR_LOG_ERROR("TextRender subsystem initialization completed with errors");
@@ -211,7 +213,11 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 
 	_cell_count = buffer.size();
 
-	const GLenum err = pollGlErrors([](GLenum err) {
+	if (glGetError() != GL_NO_ERROR) {
+		THR_LOG_ERROR("");
+	}
+
+	const GLenum err = pollGlErrors([&](GLenum err) {
 		THR_LOG_ERROR("OpenGL error during TextRender frame submission: {}", getGlErrorStr(err));
 	});
 

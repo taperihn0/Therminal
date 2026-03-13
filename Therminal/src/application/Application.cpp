@@ -168,11 +168,11 @@ void Application::init()
 	getPrimaryMonitorRes(_monitor_width, _monitor_height);
 	THR_HARD_ASSERT(_monitor_width != -1 && _monitor_height != -1);
 
-	static constexpr float MonitorWidthFac  = 4.6f;
-	static constexpr float MonitorHeightFac = 5.1f;
+	static constexpr float MonitorWidthFrac  = 0.33f;
+	static constexpr float MonitorHeightFrac = 0.5f;
 
-	const long window_width = std::lroundf(_monitor_width * 0.33f);
-	const long window_height = std::lroundf(_monitor_height * 0.5f);
+	const long window_width = std::lroundf(_monitor_width * MonitorWidthFrac);
+	const long window_height = std::lroundf(_monitor_height * MonitorHeightFrac);
 
 	_window->init(static_cast<uint>(window_width), 
 				  static_cast<uint>(window_height), 

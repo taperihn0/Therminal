@@ -88,7 +88,7 @@ std::string InputEvTransl::translate(KeyButtonEvent<C>& ev)
 */
 void InputEvTransl::createMapping()
 {
-	THR_LOG_ERROR("Creating ANSI Escape codes mapping");
+	THR_LOG_DEBUG("Creating ANSI Escape codes mapping");
 
 	// Tab
 	_map[{ THR_KEY_TAB, THR_MOD_SHIFT 		}] = "\t";
