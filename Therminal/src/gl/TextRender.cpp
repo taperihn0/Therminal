@@ -86,29 +86,29 @@ void TextRender::init(TextRenderInfo spec)
 
 	glEnableVertexAttribArray(1);
 	glVertexAttribDivisor(1, 1);
-	glVertexAttribIPointer(1, 
-						   1, GL_UNSIGNED_INT, 
-						   sizeof(ShaderCellInfo), 
-						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, id)));
-
-	glEnableVertexAttribArray(2);
-	glVertexAttribDivisor(2, 1);
-	glVertexAttribIPointer(2,
+	glVertexAttribIPointer(1,
 						   2, GL_UNSIGNED_INT,
 						   sizeof(ShaderCellInfo),
 						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, pos)));
 
+	glEnableVertexAttribArray(2);
+	glVertexAttribDivisor(2, 1);
+	glVertexAttribIPointer(2, 
+						   1, GL_UNSIGNED_INT, 
+						   sizeof(ShaderCellInfo), 
+						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, id)));
+
 	glEnableVertexAttribArray(3);
 	glVertexAttribDivisor(3, 1);
 	glVertexAttribIPointer(3, 
-						   3, GL_UNSIGNED_BYTE,
+						   4, GL_UNSIGNED_BYTE,
 						   sizeof(ShaderCellInfo), 
 						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, fg)));
 
 	glEnableVertexAttribArray(4);
 	glVertexAttribDivisor(4, 1);
 	glVertexAttribIPointer(4, 
-						   3, GL_UNSIGNED_BYTE,
+						   4, GL_UNSIGNED_BYTE,
 						   sizeof(ShaderCellInfo), 
 						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, bg)));
 
@@ -217,11 +217,7 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 
 	_cell_count = buffer.size();
 
-	if (glGetError() != GL_NO_ERROR) {
-		THR_LOG_ERROR("");
-	}
-
-	const GLenum err = pollGlErrors([&](GLenum err) {
+	const GLenum err = pollGlErrors([](GLenum err) {
 		THR_LOG_ERROR("OpenGL error during TextRender frame submission: {}", getGlErrorStr(err));
 	});
 

@@ -32,6 +32,7 @@ Vec<Ptr<const Line>> Grid::getVisibleLines()// const
     // TODO
     _ln_buf[0].clear();
     _ln_buf[0].putChar('X', nullptr);
+    _ln_buf[0].putChar('g', nullptr);
     return Vec<Ptr<const Line>>{ _ln_buf.data() };
 }
 
