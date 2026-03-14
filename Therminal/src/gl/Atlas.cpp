@@ -303,7 +303,13 @@ void FontAtlas::bindAtlas() const
 
 void FontAtlas::unbindAtlas() const
 {
-	glBindTexture(GL_TEXTURE_2D, 0);
+	static std::array<GLuint, 3> TexIds = {
+		_atlas_tex_id,
+		_tb_tex_uvs_id,
+		_tb_tex_form_id
+	};
+
+	glBindTextures(0, 3, TexIds.data());
 }
 
 GLenum FontAtlas::getAtlasTexUnit() const

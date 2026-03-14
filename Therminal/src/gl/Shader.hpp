@@ -59,6 +59,7 @@ public:
 
 	void linkProgram();
 	void useProgram() const;
+	void unuseProgram() const;
 	void attachStage(const GLShaderStage& stage) const;
 
 	template <typename T>

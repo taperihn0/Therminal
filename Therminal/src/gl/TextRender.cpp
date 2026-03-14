@@ -58,17 +58,19 @@ void TextRender::init(const RenderFormat& spec)
 	glBindBuffer(GL_ARRAY_BUFFER, _base_vbo_id);
 	THR_HARD_ASSERT(_base_vbo_id != 0 && glIsBuffer(_base_vbo_id) == GL_TRUE);
 
-	static std::array<glm::vec2, 4> vert = {
-		glm::vec2{ 0.f, 0.f },
-		glm::vec2{ 1.f, 0.f },
-		glm::vec2{ 0.f, 1.f },
-		glm::vec2{ 1.f, 1.f }
-	};
+	{
+		static std::array<glm::vec2, 4> vert = {
+			glm::vec2{ 0.f, 0.f },
+			glm::vec2{ 1.f, 0.f },
+			glm::vec2{ 0.f, 1.f },
+			glm::vec2{ 1.f, 1.f }
+		};
 
-	glBufferData(GL_ARRAY_BUFFER, 
-				 sizeof(vert),
-				 reinterpret_cast<GLvoid*>(vert.data()),
-				 GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, 
+						sizeof(vert),
+						reinterpret_cast<GLvoid*>(vert.data()),
+						GL_STATIC_DRAW);
+	}
 
 	glEnableVertexAttribArray(0);
 
@@ -130,6 +132,28 @@ void TextRender::init(const RenderFormat& spec)
 	_shader->prog.attachStage(_shader->frag);
 	_shader->prog.linkProgram();
 	THR_HARD_ASSERT(_shader->prog.isLinked());
+
+	/* Setup uniforms for textures and tex-buffers */
+	{
+		_shader->prog.useProgram();
+
+		const glm::ivec2 window_size = _format.getWindowSize();
+		const glm::ivec2 cell_size = _format.getCellSize();
+
+		_shader->prog.setUniform2<GLuint>("ScreenResPix", window_size.x, window_size.y);
+		_shader->prog.setUniform2<GLuint>("CellSizePix",  cell_size.x, cell_size.y);
+
+		const GLint uvs_buf_unit = getGlActiveTexUniformVal(_atlas.getAtlasTexBufUnit());
+		_shader->prog.setUniform1<GLint>("AtlasUVsLookup", uvs_buf_unit);
+
+		const GLint format_buf_unit = getGlActiveTexUniformVal(_atlas.getCharFormatBufUnit());
+		_shader->prog.setUniform1<GLint>("CharFormatLookup", format_buf_unit);
+
+		const GLint atlas_tex_unit = getGlActiveTexUniformVal(_atlas.getAtlasTexUnit());
+		_shader->prog.setUniform1<GLint>("AtlasTexture", atlas_tex_unit);
+
+		_shader->prog.unuseProgram();
+	}
 
 	const GLenum err = pollGlErrors([](GLenum err) {
 		THR_LOG_ERROR("OpenGL error during TextRender initialization: {}", getGlErrorStr(err));
@@ -240,27 +264,14 @@ void TextRender::renderText() const
 	}
 
 	_atlas.bindAtlas();
-
 	glBindVertexArray(*_vao_id_ptr);
 	_shader->prog.useProgram();
 
-	const glm::ivec2 window_size = _format.getWindowSize();
-	const glm::ivec2 cell_size = _format.getCellSize();
-
-	_shader->prog.setUniform2<GLuint>("ScreenResPix", window_size.x, window_size.y);
-	_shader->prog.setUniform2<GLuint>("CellSizePix",  cell_size.x, cell_size.y);
-	_shader->prog.setUniform1<GLint>("AtlasUVsLookup", 
-									 getGlActiveTexUniformVal(_atlas.getAtlasTexBufUnit()));
-	_shader->prog.setUniform1<GLint>("CharFormatLookup", 
-									 getGlActiveTexUniformVal(_atlas.getCharFormatBufUnit()));
-	_shader->prog.setUniform1<GLint>("AtlasTexture", 
-									 getGlActiveTexUniformVal(_atlas.getAtlasTexUnit()));
-
 	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(_cell_count));
 
-	_atlas.unbindAtlas();
-
 	glBindVertexArray(0);
+	_atlas.unbindAtlas();
+	_shader->prog.unuseProgram();
 
 	pollGlErrors([](GLenum err) {
 		THR_LOG_ERROR("OpenGL error during TextRender frame rendering: {}", getGlErrorStr(err));

@@ -187,6 +187,16 @@ void GLShader::useProgram() const
 	});
 }
 
+void GLShader::unuseProgram() const
+{
+	glUseProgram(0);
+
+	pollGlErrors([&](GLenum err) {
+		THR_LOG_ERROR("Failed to unuse shader program of id: {}", _id);
+		THR_LOG_ERROR("Error: {}", getGlErrorStr(err));
+	});
+}
+
 void GLShader::attachStage(const GLShaderStage& stage) const
 {
 	const GLuint stage_id = stage.getID();
