@@ -12,10 +12,15 @@ uniform uvec2 ScreenResPix;
 uniform uvec2 CellSizePix;
 
 uniform samplerBuffer AtlasUVsLookup;
+uniform isamplerBuffer CharFormatLookup;
 
 void main() 
 {
-	vec2 pix_pos = CellSizePix * aUnitVert + aPos;
+	ivec4 format = texelFetch(CharFormatLookup, int(aId));
+	ivec2 char_size = format.xy;
+	ivec2 char_bearing = format.zw;
+
+	vec2 pix_pos = char_size * aUnitVert + aPos + vec2(char_bearing.x, int(CellSizePix.y) - char_bearing.y);
 	vec2 norm_pos = vec2(1., -1.) * (2. * pix_pos - ScreenResPix) / ScreenResPix;
 	
 	vec4 atlas_uv_bords = texelFetch(AtlasUVsLookup, int(aId));

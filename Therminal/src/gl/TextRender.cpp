@@ -13,7 +13,7 @@ struct ShaderCellInfo
 };
 
 TextRender::TextRender()
-	: _atlas(128, 128, 48)
+	: _atlas(256, 256, 24)
 	, _vao_id_ptr(nullptr)
 	, _base_vbo_id(0)
 	, _vbo_id(0)
@@ -203,7 +203,8 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 			xpos += _cell_width;
 		}
 
-		ypos += _cell_height;
+		ypos += _cell_height + 5;
+		xpos = 0;
 	}
 
 	THR_ASSERT(!buffer.empty());
@@ -240,10 +241,16 @@ void TextRender::renderText() const
 
 	_shader->prog.setUniform2<GLuint>("ScreenResPix", _window_width, _window_height);
 	_shader->prog.setUniform2<GLuint>("CellSizePix",  _cell_width, _cell_height);
-	_shader->prog.setUniform1<GLint>("AtlasUVsLookup", 1);//_atlas.getActiveTextureBufferUnit());
-	_shader->prog.setUniform1<GLint>("AtlasTexture", 0);//_atlas.getActiveTextureUnit());
+	_shader->prog.setUniform1<GLint>("AtlasUVsLookup", 
+									 getGlActiveTexUniformVal(_atlas.getAtlasTexBufUnit()));
+	_shader->prog.setUniform1<GLint>("CharFormatLookup", 
+									 getGlActiveTexUniformVal(_atlas.getCharFormatBufUnit()));
+	_shader->prog.setUniform1<GLint>("AtlasTexture", 
+									 getGlActiveTexUniformVal(_atlas.getAtlasTexUnit()));
 
 	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(_cell_count));
+
+	_atlas.unbindAtlas();
 
 	glBindVertexArray(0);
 

@@ -9,8 +9,8 @@ namespace Thr
 
 struct GlyphInfo
 {
-	uint	 width;
-	uint	 height;
+	int	     width;
+	int	     height;
 	int		 bearing_x;
 	int		 bearing_y;
 	int		 advance;
@@ -21,6 +21,9 @@ class FontAtlas
 {
 public:
 	FontAtlas();
+	/* Specify size of atlas texture in pixels and glyph height.
+	*  Glyph width will be adjusted automaticaly and can be obtained later.
+	*/
 	FontAtlas(uint atlas_width, 
 			  uint atlas_height,
 			  uint glyph_height);
@@ -29,20 +32,26 @@ public:
 	FontAtlas(const FontAtlas&) = delete;
 	FontAtlas(FontAtlas&& atlas);
 
+	/* Initialize Atlas resources and 
+	*  provide active vao.
+	*/
 	void init(std::shared_ptr<GLuint> vao);
 
 	FontAtlas& operator=(const FontAtlas&) = delete;
 	FontAtlas& operator=(FontAtlas&& atlas);
-
+	
+	/* Add/probe UNICODE glyph */
 	void addGlyph(char32_t codepoint);
 	uint32_t getGlyphInfo(char32_t codepoint, GlyphInfo& info) const;
 
 	void bindAtlas() const;
 	void unbindAtlas() const;
 
-	GLenum getActiveTextureUnit() const;
-	GLenum getActiveTextureBufferUnit() const;
+	GLenum getAtlasTexUnit() const;
+	GLenum getAtlasTexBufUnit() const;
+	GLenum getCharFormatBufUnit() const;
 
+	/* Get single glyph size in pixels */
 	void getGlyphPixSize(uint& width, uint& height) const;
 private:
 	THR_INLINE void clear();
@@ -53,8 +62,10 @@ private:
 
 	std::unordered_map<char32_t, GlyphInfo> _glyph_map;
 	GLuint								    _atlas_tex_id;
-	GLuint 								    _tb_buf_id;
-	GLuint								    _tb_tex_id;
+	GLuint 								    _tb_buf_uvs_id;
+	GLuint								    _tb_tex_uvs_id;
+	GLuint 									_tb_buf_form_id;
+	GLuint 									_tb_tex_form_id;
 	FT_Library							    _ft_lib;
 	FT_Face								    _ft_face;
 	uint32_t							    _glyph_id;

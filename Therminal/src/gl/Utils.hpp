@@ -34,7 +34,6 @@ THR_INLINE GLenum pollGlErrors(std::function<void(GLenum)> policy)
 {
 
 #if defined(THR_DEBUG) || defined(THR_RELEASE_DEBUG_INFO)
-
 	GLenum err = GL_NO_ERROR;
 
 	while ((err = glGetError()) != GL_NO_ERROR) {
@@ -42,12 +41,15 @@ THR_INLINE GLenum pollGlErrors(std::function<void(GLenum)> policy)
 	}
 
 	return err;
-
 #else
-
 	return GL_NO_ERROR;
-
 #endif
+}
+
+THR_FORCEINLINE GLint getGlActiveTexUniformVal(GLenum tex) 
+{
+	THR_ASSERT(tex >= GL_TEXTURE0 && tex <= GL_TEXTURE31);
+	return tex - GL_TEXTURE0;
 }
 
 } // namespace Thr

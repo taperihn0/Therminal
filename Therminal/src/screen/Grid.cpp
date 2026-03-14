@@ -33,7 +33,13 @@ Vec<Ptr<const Line>> Grid::getVisibleLines()// const
     _ln_buf[0].clear();
     _ln_buf[0].putChar('X', nullptr);
     _ln_buf[0].putChar('g', nullptr);
-    return Vec<Ptr<const Line>>{ _ln_buf.data() };
+
+    _ln_buf[1].clear();
+    _ln_buf[1].putChar('X', nullptr);
+    _ln_buf[1].putChar('T', nullptr);
+    _ln_buf[1].putChar('h', nullptr);
+    
+    return Vec<Ptr<const Line>>{ _ln_buf.data(), _ln_buf.data() + 1 };
 }
 
 } // namespace Thr
