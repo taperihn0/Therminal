@@ -46,13 +46,11 @@ THR_FORCEINLINE GlyphFormatData::GlyphFormatData(int width,
 
 FontAtlas::FontAtlas()
 	: FontAtlas(DefaultAtlasWidth, 
-				DefaultAtlasHeight, 
-				DefaultGlyphHeight)
+				DefaultAtlasHeight)
 {}
 
 FontAtlas::FontAtlas(uint atlas_width, 
-					 uint atlas_height,
-					 uint glyph_height)
+					 uint atlas_height)
 	: _atlas_tex_id(0)
 	, _tb_buf_uvs_id(0)
 	, _tb_tex_uvs_id(0)
@@ -64,7 +62,7 @@ FontAtlas::FontAtlas(uint atlas_width,
 	, _atlas_width(atlas_width)
 	, _atlas_height(atlas_height)
 	, _glyph_width(0)
-	, _glyph_height(glyph_height)
+	, _glyph_height(0)
 	, _glyph_per_tb(0)
 	, _atlas_x_offset(0)
 	, _atlas_y_offset(0)
@@ -323,7 +321,7 @@ GLenum FontAtlas::getCharFormatBufUnit() const
 	return GL_TEXTURE2;
 }
 
-void FontAtlas::getGlyphPixSize(uint& width, uint& height) const
+void FontAtlas::getGlyphPixSize(int& width, int& height) const
 {
 	if (!_initialized) {
 		THR_LOG_ERROR("FontAtlas subsystem is not initialized, can't get glyph pixel size");
@@ -332,11 +330,11 @@ void FontAtlas::getGlyphPixSize(uint& width, uint& height) const
 		return;
 	}
 
-	width = _glyph_width;
-	height = _glyph_height;
+	width = static_cast<int>(_glyph_width);
+	height = static_cast<int>(_glyph_height);
 }
 
-void FontAtlas::init(std::shared_ptr<GLuint> vao)
+void FontAtlas::init(std::shared_ptr<GLuint> vao, int glyph_height)
 {
 	if (_initialized) {
 		THR_LOG_ERROR("FontAtlas subsystem is already initialized, can't initialize again");
@@ -359,6 +357,8 @@ void FontAtlas::init(std::shared_ptr<GLuint> vao)
 		THR_LOG_ERROR("Loaded font is not monospaced");
 		return;
 	}
+
+	_glyph_height = static_cast<uint>(glyph_height);
 
 	if (FT_Set_Pixel_Sizes(_ft_face, 0, _glyph_height)) {
 		THR_LOG_ERROR("Failed to set pixel size for font face");

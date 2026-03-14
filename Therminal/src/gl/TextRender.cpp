@@ -8,19 +8,16 @@ struct ShaderCellInfo
 {
 	glm::u32vec2 pos;
 	uint32_t	 id;
-	Col8		 fg;
-	Col8		 bg;
+	Color3u8     fg;
+	Color3u8     bg;
 };
 
 TextRender::TextRender()
-	: _atlas(256, 256, 24)
+	: _atlas(DefaultAtlasWidth, DefaultAtlasHeight)
 	, _vao_id_ptr(nullptr)
 	, _base_vbo_id(0)
 	, _vbo_id(0)
-	, _window_width(0)
-	, _window_height(0)
-	, _cell_width(0)
-	, _cell_height(0)
+	, _format(0, 0, 0, 0, 0, 0)
 	, _cols(0)
 	, _rows(0)
 	, _shader(std::make_unique<ShaderProgram>())
@@ -28,26 +25,31 @@ TextRender::TextRender()
 	, _initialized(false)
 {}
 
-void TextRender::init(TextRenderInfo spec)
+void TextRender::init(const RenderFormat& spec)
 {
 	if (_initialized) {
 		THR_LOG_ERROR("TextRender subsystem is already initialized, can't initialize again");
 		return;
 	}
 
-	_window_width = spec.window_width;
-	_window_height = spec.window_height;
+	// save format specifiers
+	_format = spec;
 
 	_vao_id_ptr = std::make_shared<GLuint>(0);
 
 	glGenVertexArrays(1, _vao_id_ptr.get());
 
-	_atlas.init(_vao_id_ptr);
+	const glm::ivec2 g_cell_size = _format.getCellSize();
+	_atlas.init(_vao_id_ptr, g_cell_size.y);
 
-	_atlas.getGlyphPixSize(_cell_width, _cell_height);
+	glm::ivec2 res_cell_size;
+	_atlas.getGlyphPixSize(res_cell_size.x, res_cell_size.y);
+	
+	THR_LOG_INFO("Cell size at RenderFormat set to: {}", res_cell_size.x);
+	_format.setCellSize(res_cell_size);
 
-	_cols = _window_width / _cell_width;
-	_rows = _window_height / _cell_height;
+	_cols = _format.getCellCountVertical();
+	_rows = _format.getCellCountHorizontal();
 
 	glBindVertexArray(*_vao_id_ptr);
 	THR_HARD_ASSERT(*_vao_id_ptr != 0 && glIsVertexArray(*_vao_id_ptr) == GL_TRUE);
@@ -101,14 +103,14 @@ void TextRender::init(TextRenderInfo spec)
 	glEnableVertexAttribArray(3);
 	glVertexAttribDivisor(3, 1);
 	glVertexAttribIPointer(3, 
-						   4, GL_UNSIGNED_BYTE,
+						   3, GL_UNSIGNED_BYTE,
 						   sizeof(ShaderCellInfo), 
 						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, fg)));
 
 	glEnableVertexAttribArray(4);
 	glVertexAttribDivisor(4, 1);
 	glVertexAttribIPointer(4, 
-						   4, GL_UNSIGNED_BYTE,
+						   3, GL_UNSIGNED_BYTE,
 						   sizeof(ShaderCellInfo), 
 						   reinterpret_cast<GLvoid*>(offsetof(ShaderCellInfo, bg)));
 
@@ -173,6 +175,9 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 	Vec<ShaderCellInfo> buffer;
 	buffer.reserve(total_cells); // TODO: preallocate that and reuse every time we got here
 
+	const glm::ivec2 cell_size = _format.getCellSize();
+	const glm::ivec2 offset = _format.getCellOffset();
+
 	uint xpos = 0;
 	uint ypos = 0;
 
@@ -199,11 +204,11 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 				cell.bg
 			});
 
-			THR_ASSERT(info.advance == static_cast<int>(_cell_width));
-			xpos += _cell_width;
+			THR_ASSERT(info.advance == static_cast<int>(cell_size.x));
+			xpos += cell_size.x + offset.x;
 		}
 
-		ypos += _cell_height + 5;
+		ypos += cell_size.y + offset.y;
 		xpos = 0;
 	}
 
@@ -239,8 +244,11 @@ void TextRender::renderText() const
 	glBindVertexArray(*_vao_id_ptr);
 	_shader->prog.useProgram();
 
-	_shader->prog.setUniform2<GLuint>("ScreenResPix", _window_width, _window_height);
-	_shader->prog.setUniform2<GLuint>("CellSizePix",  _cell_width, _cell_height);
+	const glm::ivec2 window_size = _format.getWindowSize();
+	const glm::ivec2 cell_size = _format.getCellSize();
+
+	_shader->prog.setUniform2<GLuint>("ScreenResPix", window_size.x, window_size.y);
+	_shader->prog.setUniform2<GLuint>("CellSizePix",  cell_size.x, cell_size.y);
 	_shader->prog.setUniform1<GLint>("AtlasUVsLookup", 
 									 getGlActiveTexUniformVal(_atlas.getAtlasTexBufUnit()));
 	_shader->prog.setUniform1<GLint>("CharFormatLookup", 
@@ -257,6 +265,12 @@ void TextRender::renderText() const
 	pollGlErrors([](GLenum err) {
 		THR_LOG_ERROR("OpenGL error during TextRender frame rendering: {}", getGlErrorStr(err));
 	});
+}
+
+void TextRender::clearScreen(Color4f col)
+{
+	glClearColor(col.r, col.g, col.b, col.a);
+	glClear(GL_COLOR_BUFFER_BIT);
 }
 
 } // namespace Thr

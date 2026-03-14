@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common.hpp"
-#include "Color.hpp"
+#include "col/Color.hpp"
 
 namespace Thr
 {
@@ -9,8 +9,8 @@ namespace Thr
 struct Cell
 {
     char32_t ch;
-    Col8     fg;
-    Col8     bg;
+    Color3u8 fg;
+    Color3u8 bg;
 };
 
 struct EscapeState;

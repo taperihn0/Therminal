@@ -35,7 +35,7 @@ THR_INLINE void OutputStreamTransl::setBuf(std::string_view utf8)
 {
 	_utf8 = utf8;
 	_it = _utf8.begin();
-	_to_read = std::distance(_it, utf8.end()) + 1;
+	_to_read = std::distance(_it, utf8.end());
 }
 
 THR_INLINE bool OutputStreamTransl::nextUTF32(char32_t* ch)

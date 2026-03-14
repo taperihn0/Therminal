@@ -21,12 +21,10 @@ class FontAtlas
 {
 public:
 	FontAtlas();
-	/* Specify size of atlas texture in pixels and glyph height.
-	*  Glyph width will be adjusted automaticaly and can be obtained later.
+	/* Specify size of atlas texture in pixels.
 	*/
 	FontAtlas(uint atlas_width, 
-			  uint atlas_height,
-			  uint glyph_height);
+			  uint atlas_height);
 	~FontAtlas();
 
 	FontAtlas(const FontAtlas&) = delete;
@@ -34,8 +32,9 @@ public:
 
 	/* Initialize Atlas resources and 
 	*  provide active vao.
+	*  Glyph width will be adjusted automaticaly and can be obtained later.
 	*/
-	void init(std::shared_ptr<GLuint> vao);
+	void init(std::shared_ptr<GLuint> vao, int glyph_height);
 
 	FontAtlas& operator=(const FontAtlas&) = delete;
 	FontAtlas& operator=(FontAtlas&& atlas);
@@ -44,6 +43,10 @@ public:
 	void addGlyph(char32_t codepoint);
 	uint32_t getGlyphInfo(char32_t codepoint, GlyphInfo& info) const;
 
+	/* Bind underlaying textures and texture buffers.
+	*  Active textures can be obtained using 'getAtlasTexUnit',
+	*  'getAtlasTexBufUnit' or 'getCharFormatBufUnit' methods below.
+	*/
 	void bindAtlas() const;
 	void unbindAtlas() const;
 
@@ -52,7 +55,7 @@ public:
 	GLenum getCharFormatBufUnit() const;
 
 	/* Get single glyph size in pixels */
-	void getGlyphPixSize(uint& width, uint& height) const;
+	void getGlyphPixSize(int& width, int& height) const;
 private:
 	THR_INLINE void clear();
 
@@ -72,7 +75,7 @@ private:
 	const uint 							    _atlas_width;
 	const uint 							    _atlas_height;
 	uint									_glyph_width;
-	const uint 							    _glyph_height;
+	uint 							        _glyph_height;
 	uint 									_glyph_per_tb;
 	int									    _atlas_x_offset;
 	int									    _atlas_y_offset;

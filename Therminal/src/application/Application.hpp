@@ -11,6 +11,7 @@
 #include "screen/Grid.hpp"
 #include "io/OutputParser.hpp"
 #include "gl/TextRender.hpp"
+#include "gl/RenderFormat.hpp"
 
 namespace Thr 
 {
@@ -60,6 +61,7 @@ private:
 	int                     _fdm;
 	std::shared_ptr<Grid>   _grid;
 	OutputParser			_parser;
+	RenderFormat 			_render_format;
 	TextRender				_text_render;
 };
 

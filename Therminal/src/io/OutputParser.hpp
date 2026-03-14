@@ -2,15 +2,15 @@
 
 #include "OutputTranslator.hpp"
 #include "screen/Grid.hpp"
-#include "screen/Color.hpp"
+#include "col/Color.hpp"
 
 namespace Thr
 {
     
 struct EscapeState
 {
-    Col8 fg;
-    Col8 bg;
+    Color3u8 fg;
+    Color3u8 bg;
 };
 
 class OutputParser

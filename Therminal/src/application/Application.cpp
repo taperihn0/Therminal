@@ -132,6 +132,14 @@ Application::Application(int argc, char* argv[])
 	, _interactive(false)
 	, _fdm(-1)
 	, _grid(std::make_shared<Grid>(1024))
+	, _render_format(
+			0, // unknown so far
+			0, // unknown so far
+			0, 
+			24,
+			1,
+			1
+		)
 {
    init();
 
@@ -147,16 +155,19 @@ Application::Application(int argc, char* argv[])
 void Application::run() 
 {
 	THR_LOG_INFO("Welcome to Therminal!");
-	glClearColor(0.1f, 0.1f, 0.1f, 1.f);
 
 	while (_window->isOpen()) {
-		glClear(GL_COLOR_BUFFER_BIT);
+		_text_render.clearScreen(Color4f{ 0.1f, 0.1f, 0.1f, 1.f });
 
 		int n = 0;
 		const byte* ptr = _io.output_buff.read(n);
 		_io.output_buff.swap();
 
-		_text_render.submitCurrFrame(_grid->getVisibleLines());
+		if (n > 0) {
+			_parser.parseToGrid(ptr, n);
+			_text_render.submitCurrFrame(_grid->getVisibleLines());
+		}
+		
 		_text_render.renderText();
 
 		_window->update();
@@ -165,6 +176,7 @@ void Application::run()
 
 void Application::init() 
 {
+	/* Setup window size and initialize glfw window */
 	getPrimaryMonitorRes(_monitor_width, _monitor_height);
 	THR_HARD_ASSERT(_monitor_width != -1 && _monitor_height != -1);
 
@@ -178,30 +190,34 @@ void Application::init()
 				  static_cast<uint>(window_height), 
 				  "Hello GLFW!");
 
+	/* Setup event callbacks */
 	_window->setErrorCallback(winErrorCallback);
-
 	_window->setWindowResizeCallback(winResizeCallback);
 	_window->setWindowMoveCallback(winMoveCallback);
 	_window->setWindowFocusCallback(winFocusCallback);
 	_window->setWindowCloseCallback(winCloseCallback);
-
 	_window->setKeyPressCallback(winKeyPressCallback);
 	_window->setKeyReleaseCallback(winKeyReleaseCallback);
 	_window->setKeyRepeatCallback(winKeyRepeatCallback);
 	_window->setKeyTypeCallback(winKeyTypeCallback);
-
 	_window->setMousePressCallback(winMousePressCallback);
 	_window->setMouseReleaseCallback(winMouseReleaseCallback);
 	_window->setMouseMoveCallback(winMouseMoveCallback);
 	_window->setMouseScrollCallback(winMouseScrollCallback);
 
+	/* Create shell stream workflow */
 	createShellFork();
+
+	/* Specify input parser from shell proc */
 	_parser.writeTo(_grid);
 
-	_text_render.init(TextRenderInfo{
-		_window->getWidth(),
-		_window->getHeight(),
-	});
+	/* Setup render format and initialize text rendering */
+	_render_format.setWindowSize(glm::ivec2(_window->getWidth(),
+										    _window->getHeight()));
+										
+	_text_render.init(_render_format);
+
+	_grid->specifyRenderFormat(_render_format);
 }
 
 void Application::createShellFork()

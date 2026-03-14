@@ -3,8 +3,8 @@
 layout (location = 0) in vec2  aUnitVert;
 layout (location = 1) in uvec2 aPos;
 layout (location = 2) in uint  aId;
-layout (location = 3) in uvec4 aFgCol;
-layout (location = 4) in uvec4 aBgCol;
+layout (location = 3) in uvec3 aFgCol;
+layout (location = 4) in uvec3 aBgCol;
 
 out vec2 TexCoords;
 
