@@ -4,9 +4,17 @@
 #include "Atlas.hpp"
 #include "screen/Line.hpp"
 #include "RenderFormat.hpp"
+#include "screen/Grid.hpp"
 
 namespace Thr
 {
+
+/* Rendering frame data
+*/
+struct RenderFramePacket
+{
+	std::shared_ptr<LinePtrBuf> ln_ptrs;
+};
 
 class TextRender
 {
@@ -22,7 +30,7 @@ public:
 	TextRender operator=(const TextRender&) = delete;
 	TextRender operator=(TextRender&&) = delete;
 
-	void submitCurrFrame(const Vec<Ptr<const Line>>& text);
+	void submitCurrFrame(const RenderFramePacket& packet);
 	void renderText() const;
 
 	void clearScreen(Color4f col);

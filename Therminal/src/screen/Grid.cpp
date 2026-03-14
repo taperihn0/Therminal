@@ -5,12 +5,44 @@
 namespace Thr
 {
 
+LinePtrBuf::LinePtrBuf()
+{
+	v.reserve(DefaultBufSize);
+}
+
+void LinePtrBuf::clear()
+{
+	v.clear();
+}
+
+void LinePtrBuf::push(Ptr<const Line> ptr)
+{
+	v.push_back(ptr);
+}
+
+void LinePtrBuf::reserve(size_t ns)
+{
+	if (ns > v.size()) {
+		THR_LOG_DEBUG("Line pointers buffer reallocation from size of {} to {}", 
+					  v.size(), 
+					  ns);
+	}
+
+	v.reserve(ns);
+}
+
+const Vec<Ptr<const Line>>& LinePtrBuf::getVec() const
+{
+	return v;
+}
+
 Grid::Grid(size_t ln_width)
 	: _ln_width(ln_width)
 	, _cursor_pos(0)
 	, _ln_buf{}
 	, _render_format{}
 	, _formated(false)
+	, _ln_ptrs(std::make_shared<LinePtrBuf>())
 {
 	std::for_each(_ln_buf.begin(), _ln_buf.end(), 
 		[&](Line& l) {
@@ -36,21 +68,21 @@ void Grid::putChar(char32_t c, const EscapeState* state)
 	curr_ln.putChar(c, state);
 }
 
-Vec<Ptr<const Line>> Grid::getVisibleLines() const
+std::shared_ptr<LinePtrBuf> Grid::getVisibleLines() const
 {
 	THR_ASSERT_LOG(_formated, "Cannot specify visible lines for unknown render format");
 
 	const size_t start_pos = 0; // TODO: Implement scrolling
 	const int line_count = _render_format.getCellCountHorizontal();
 
-	Vec<Ptr<const Line>> render_pack;
-	render_pack.reserve(line_count);
-	
+	_ln_ptrs->clear();
+	_ln_ptrs->reserve(line_count);
+
 	std::for_each_n(_ln_buf.begin() + start_pos, line_count, [&](const Line& ln) {
-		render_pack.push_back(std::addressof(ln));
+		_ln_ptrs->push(std::addressof(ln));
 	});
 	
-	return render_pack;
+	return _ln_ptrs;
 }
 
 } // namespace Thr

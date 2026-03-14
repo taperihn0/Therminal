@@ -187,7 +187,7 @@ TextRender::~TextRender()
 	}
 }
 
-void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text) 
+void TextRender::submitCurrFrame(const RenderFramePacket& packet) 
 {
 	if (!_initialized) {
 		THR_LOG_ERROR("TextRender subsystem is not initialized, can't submit frame");
@@ -205,20 +205,27 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 	uint xpos = 0;
 	uint ypos = 0;
 
-	for (const auto& ln : text) {
+	for (const auto& ln : packet.ln_ptrs->getVec()) {
 		THR_ASSERT(ln != nullptr);
 
 		const Vec<Cell>& cells = ln->getCellLine();
 
 		for (const auto& cell : cells) {
+			const auto codepoint = cell.ch;
+
+			if (codepoint == U'\r') {
+				xpos = 0;
+				continue;
+			}
+
 			GlyphInfo info;
-			uint32_t id = _atlas.getGlyphInfo(cell.ch, info);
+			uint32_t id = _atlas.getGlyphInfo(codepoint, info);
 
 			THR_ASSERT(info.id == id);
 
 			if (id == static_cast<uint32_t>(-1)) {
-				_atlas.addGlyph(cell.ch);
-				id = _atlas.getGlyphInfo(cell.ch, info);
+				_atlas.addGlyph(codepoint);
+				id = _atlas.getGlyphInfo(codepoint, info);
 			}
 			
 			buffer.push_back(ShaderCellInfo{
@@ -233,7 +240,6 @@ void TextRender::submitCurrFrame(const Vec<Ptr<const Line>>& text)
 		}
 
 		ypos += cell_size.y + offset.y;
-		xpos = 0;
 	}
 
 	THR_ASSERT(!buffer.empty());

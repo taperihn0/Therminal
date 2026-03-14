@@ -165,7 +165,12 @@ void Application::run()
 
 		if (n > 0) {
 			_parser.parseToGrid(ptr, n);
-			_text_render.submitCurrFrame(_grid->getVisibleLines());
+
+			const RenderFramePacket packet = {
+				_grid->getVisibleLines()
+			};
+
+			_text_render.submitCurrFrame(packet);
 		}
 		
 		_text_render.renderText();
