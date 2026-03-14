@@ -18,6 +18,7 @@
 #include <string.h>
 #include <termios.h>
 #include <poll.h>
+#include <sys/wait.h>
 
 #ifdef __cplusplus
 extern "C" {

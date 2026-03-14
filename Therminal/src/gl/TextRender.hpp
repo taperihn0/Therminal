@@ -13,7 +13,7 @@ namespace Thr
 */
 struct RenderFramePacket
 {
-	std::shared_ptr<LinePtrBuf> ln_ptrs;
+	std::shared_ptr<const LinePtrBuf> ln_ptrs;
 };
 
 class TextRender

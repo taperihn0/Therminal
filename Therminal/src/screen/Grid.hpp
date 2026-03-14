@@ -29,7 +29,7 @@ public:
 	void specifyRenderFormat(const RenderFormat& format);
 	void putChar(char32_t c, const EscapeState* state);
 
-	std::shared_ptr<LinePtrBuf> getVisibleLines() const;
+	std::shared_ptr<const LinePtrBuf> getVisibleLines() const;
 private:
 	static constexpr size_t     _BufSize = 0x10000;
 	const size_t                _ln_width;

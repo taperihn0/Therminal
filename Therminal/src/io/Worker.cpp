@@ -29,9 +29,9 @@ void ThreadWorker::spawn()
 {
 	_running = true;
 	_thr = std::thread(
-	  [this]() {
-		 this->thrExecution();
-	  });
+		[this]() {
+			this->thrExecution();
+		});
 }
 
 void ThreadWorker::stop()

@@ -124,6 +124,14 @@ void Application::winMouseScrollCallback(MouseScrollEvent ev)
 	markUnused(ev);
 }
 
+static std::function<void(int)> GlobSigChildHandler;
+
+void onSigChild(int sig)
+{
+	if (GlobSigChildHandler)
+		GlobSigChildHandler(sig);
+}
+
 Application::Application(int argc, char* argv[]) 
 	: _cwd(FilePath::getCurrentDirectory()) 
 	, _window(std::make_unique<Window>())
@@ -140,6 +148,8 @@ Application::Application(int argc, char* argv[])
 			1,
 			1
 		)
+	, _shell_id(-1)
+	, _running(true)
 {
    init();
 
@@ -156,7 +166,7 @@ void Application::run()
 {
 	THR_LOG_INFO("Welcome to Therminal!");
 
-	while (_window->isOpen()) {
+	while (_window->isOpen() && _running.load(std::memory_order_relaxed)) {
 		_text_render.clearScreen(Color4f{ 0.1f, 0.1f, 0.1f, 1.f });
 
 		int n = 0;
@@ -177,6 +187,8 @@ void Application::run()
 
 		_window->update();
 	}
+
+	onFinish();
 }
 
 void Application::init() 
@@ -242,19 +254,21 @@ void Application::createShellFork()
 	_interactive = isatty(STDIN_FILENO);
 
 	if (_interactive) { /* fetch current termios and window size */
-		if (save_termios(STDIN_FILENO, &orig_termios) < 0)
+		if (save_termios(STDIN_FILENO, std::addressof(orig_termios)) < 0)
 			THR_LOG_ERROR("Failed to save origin termios attributes");
 
-		if (save_winsize(STDIN_FILENO, &size) < 0)
+		if (save_winsize(STDIN_FILENO, std::addressof(size)) < 0)
 			THR_LOG_ERROR("Failed to save origin winsize");
 
-		pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
-						&orig_termios, &size);
+		pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
+					   std::addressof(orig_termios), std::addressof(size));
 	} 
 	else {
-		pid = pty_fork(&_fdm, slave_name, sizeof(slave_name),
+		pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
 						nullptr, nullptr);
 	}
+
+	_shell_id = pid;
 
 	if (pid < 0) {
 		THR_HARD_ASSERT_LOG(false, "fork error");
@@ -262,7 +276,7 @@ void Application::createShellFork()
 	else if (pid == 0) { /* child */ 
 		char shell[] = "sh";
 
-		if (execlp(shell, "-sh", "-l", (char*)0) < 0) {
+		if (execlp(shell, "-sh", "-l", nullptr) < 0) {
 			THR_LOG_FATAL_FRAME_INFO("Can't execute: %s", shell);
 			THR_HARD_ASSERT(false);
 		}
@@ -276,6 +290,19 @@ void Application::createShellFork()
 					_fdm);
 
 	_io.worker.spawn();
+
+	GlobSigChildHandler = [this](THR_UNUSED int sig) {
+		int status;
+		pid_t pid;
+
+		while ((pid = waitpid(-1, std::addressof(status), WNOHANG)) > 0) {
+			if (pid == _shell_id) {
+				_running.store(false, std::memory_order_relaxed);
+			}
+		}
+	};
+
+	Signal(SIGCHLD).handle(onSigChild);
 
 #endif // THR_PLATFORM_WINDOWS
 }
@@ -300,6 +327,13 @@ void Application::getPrimaryMonitorRes(int& width, int& height)
 
 	width = mode->width;
 	height = mode->height;
+}
+
+void Application::onFinish()
+{
+	if (_shell_id > 0) {
+		kill(_shell_id, SIGHUP);
+	}
 }
 
 } // namespace Thr

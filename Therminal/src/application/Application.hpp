@@ -12,6 +12,8 @@
 #include "io/OutputParser.hpp"
 #include "gl/TextRender.hpp"
 #include "gl/RenderFormat.hpp"
+#include "Signal.hpp"
+#include <atomic>
 
 namespace Thr 
 {
@@ -19,7 +21,7 @@ namespace Thr
 class Application 
 {
 public:
-	Application() = default;
+	Application() = delete;
 	Application(int argc, char* argv[]);
 	~Application() = default;
 
@@ -28,6 +30,7 @@ private:
 	void init();
 	void createShellFork();
 	void getPrimaryMonitorRes(int& width, int& height);
+	void onFinish();
 
 	/* custom event callbacks */
 	static void winErrorCallback(ErrorEvent ev);
@@ -63,6 +66,8 @@ private:
 	OutputParser			_parser;
 	RenderFormat 			_render_format;
 	TextRender				_text_render;
+	pid_t 					_shell_id;
+	std::atomic<bool> 		_running;
 };
 
 } // namespace Thr

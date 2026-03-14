@@ -68,7 +68,7 @@ void Grid::putChar(char32_t c, const EscapeState* state)
 	curr_ln.putChar(c, state);
 }
 
-std::shared_ptr<LinePtrBuf> Grid::getVisibleLines() const
+std::shared_ptr<const LinePtrBuf> Grid::getVisibleLines() const
 {
 	THR_ASSERT_LOG(_formated, "Cannot specify visible lines for unknown render format");
 
