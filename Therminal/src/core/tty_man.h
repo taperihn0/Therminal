@@ -15,6 +15,7 @@ extern "C" {
 #define TERMIOS_SETATTR_ERR (-2)
 #define WINSIZE_GETATTR_ERR (-3)
 #define WINSIZE_SETATTR_ERR (-4)
+#define NULL_POINTER_ERR    (-5)
 
 /* Save current termios settings of the 'fd' terminal.
 *  Returns 0 on success. On failure, returns negative value.
@@ -35,6 +36,19 @@ void set_noecho(int fd);
 *  On failure, returns negative value.
 */
 int tty_raw(int fd);
+
+/* Sets default 'buf' termios specifiers for 
+*  interactive mode.
+*  Returns non-negative value on success.
+*  On failure, returns negative value.
+*/
+int interactive_termios(struct termios* buf);
+
+/* Put 'fd' terminal into default, interactive mode.
+*  Returns non-negative value on success.
+*  On failure, returns negative value.
+*/
+int tty_interactive(int fd);
 
 /* Restore 'fd' terminal's mode.
 *  Returns 0 on success. On failure, returns negative value.

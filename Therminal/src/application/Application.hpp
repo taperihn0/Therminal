@@ -60,14 +60,11 @@ private:
 	std::unique_ptr<Window> _window;
 	int                     _monitor_width;
 	int                     _monitor_height;
-	bool                    _interactive;
 	int                     _fdm;
 	std::shared_ptr<Grid>   _grid;
 	OutputParser			_parser;
 	RenderFormat 			_render_format;
 	TextRender				_text_render;
-	pid_t 					_shell_id;
-	std::atomic<bool> 		_running;
 };
 
 } // namespace Thr

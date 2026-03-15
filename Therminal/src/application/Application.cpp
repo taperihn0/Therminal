@@ -124,12 +124,29 @@ void Application::winMouseScrollCallback(MouseScrollEvent ev)
 	markUnused(ev);
 }
 
-static std::function<void(int)> GlobSigChildHandler;
-
-void onSigChild(int sig)
+struct SignalSharedData
 {
-	if (GlobSigChildHandler)
-		GlobSigChildHandler(sig);
+	std::atomic<pid_t> shell_id;
+	std::atomic<bool>  running;
+};
+
+static SignalSharedData SharedData = { 0, true };
+
+void onSigChild(THR_UNUSED int sig)
+{
+	int status;
+	pid_t pid;
+
+	while ((pid = waitpid(-1, std::addressof(status), WNOHANG)) > 0) {
+		if (pid == SharedData.shell_id) {
+			SharedData.running.store(false, std::memory_order_relaxed);
+		}
+	}
+}
+
+void onSigTerm(THR_UNUSED int sig) 
+{
+	SharedData.running.store(false, std::memory_order_relaxed);
 }
 
 Application::Application(int argc, char* argv[]) 
@@ -137,7 +154,6 @@ Application::Application(int argc, char* argv[])
 	, _window(std::make_unique<Window>())
 	, _monitor_width(-1)
 	, _monitor_height(-1)
-	, _interactive(false)
 	, _fdm(-1)
 	, _grid(std::make_shared<Grid>(1024))
 	, _render_format(
@@ -148,8 +164,6 @@ Application::Application(int argc, char* argv[])
 			1,
 			1
 		)
-	, _shell_id(-1)
-	, _running(true)
 {
    init();
 
@@ -166,7 +180,7 @@ void Application::run()
 {
 	THR_LOG_INFO("Welcome to Therminal!");
 
-	while (_window->isOpen() && _running.load(std::memory_order_relaxed)) {
+	while (_window->isOpen() && SharedData.running.load(std::memory_order_relaxed)) {
 		_text_render.clearScreen(Color4f{ 0.1f, 0.1f, 0.1f, 1.f });
 
 		int n = 0;
@@ -222,9 +236,6 @@ void Application::init()
 	_window->setMouseMoveCallback(winMouseMoveCallback);
 	_window->setMouseScrollCallback(winMouseScrollCallback);
 
-	/* Create shell stream workflow */
-	createShellFork();
-
 	/* Specify input parser from shell proc */
 	_parser.writeTo(_grid);
 
@@ -235,6 +246,9 @@ void Application::init()
 	_text_render.init(_render_format);
 
 	_grid->specifyRenderFormat(_render_format);
+
+	/* Create shell stream workflow */
+	createShellFork();
 }
 
 void Application::createShellFork()
@@ -245,64 +259,87 @@ void Application::createShellFork()
 
 #else
 
-	static struct termios orig_termios;
-	static struct winsize size;
-
 	pid_t pid;
 	char slave_name[20];
 
-	_interactive = isatty(STDIN_FILENO);
+	/* Block incoming signals for now.
+	*  Make sure it got handled by the parent properly after the fork.
+	*/
 
-	if (_interactive) { /* fetch current termios and window size */
-		if (save_termios(STDIN_FILENO, std::addressof(orig_termios)) < 0)
+	sigset_t sigset, prev_sigset;
+
+	if (sigemptyset(std::addressof(sigset)) < 0)
+		THR_LOG_ERROR("Failed to 'sigemptyset'");
+
+	if (sigaddset(std::addressof(sigset), SIGCHLD) < 0 ||
+		sigaddset(std::addressof(sigset), SIGUSR1) < 0)
+		THR_LOG_ERROR("Failed to 'sigaddset'");
+
+	if (sigprocmask(SIG_BLOCK, 
+					std::addressof(sigset), 
+					std::addressof(prev_sigset)) < 0) 
+		THR_LOG_ERROR("Failed to 'sigprocmask'");
+
+	/* setup terminal file for slave */
+
+	struct termios slave_termios;
+	struct winsize slave_winsize;
+
+	if (isatty(STDIN_FILENO)) { /* use native termios */
+		if (save_termios(STDIN_FILENO, std::addressof(slave_termios)) < 0)
 			THR_LOG_ERROR("Failed to save origin termios attributes");
-
-		if (save_winsize(STDIN_FILENO, std::addressof(size)) < 0)
-			THR_LOG_ERROR("Failed to save origin winsize");
-
-		pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
-					   std::addressof(orig_termios), std::addressof(size));
-	} 
-	else {
-		pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
-						nullptr, nullptr);
+	}
+	else if (interactive_termios(std::addressof(slave_termios)) < 0) {
+		THR_LOG_ERROR("Failed to generate interactive termios");
 	}
 
-	_shell_id = pid;
+	slave_winsize.ws_col = _render_format.getCellCountHorizontal();
+	slave_winsize.ws_row = _render_format.getCellCountVertical();
+
+	pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
+				   std::addressof(slave_termios), std::addressof(slave_winsize));
 
 	if (pid < 0) {
 		THR_HARD_ASSERT_LOG(false, "fork error");
 	} 
 	else if (pid == 0) { /* child */ 
+		if (sigprocmask(SIG_SETMASK, std::addressof(prev_sigset), nullptr) < 0)
+			THR_LOG_ERROR("Failed to 'sigprocmask'"); // might not display properly
+
 		char shell[] = "sh";
 
 		if (execlp(shell, "-sh", "-l", nullptr) < 0) {
-			THR_LOG_FATAL_FRAME_INFO("Can't execute: %s", shell);
-			THR_HARD_ASSERT(false);
+			THR_LOG_FATAL_FRAME_INFO("Can't execute: {}", shell);
+			
+			if (kill(getppid(), SIGTERM) < 0) {
+				exit(-1);
+			}
+
+			exit(0);
 		}
+		
+		/* Never returns */
 	}
 
+	/* parent */
+
+	SharedData.shell_id = pid;
+
+	Signal(SIGCHLD).handle(onSigChild);
+	Signal(SIGUSR1).handle(onSigTerm);
+
+	/* Unblock pending signals */
+
+	if (sigprocmask(SIG_SETMASK, std::addressof(prev_sigset), nullptr) < 0)
+		THR_LOG_ERROR("Failed to 'sigprocmask'");
+	
 	THR_LOG_DEBUG("Slave name = {}", slave_name);
-	THR_LOG_DEBUG("Interactive = {}", _interactive);
 
 	_io.worker.init(std::addressof(_io.input_circ_buff), 
 					std::addressof(_io.output_buff), 
 					_fdm);
 
 	_io.worker.spawn();
-
-	GlobSigChildHandler = [this](THR_UNUSED int sig) {
-		int status;
-		pid_t pid;
-
-		while ((pid = waitpid(-1, std::addressof(status), WNOHANG)) > 0) {
-			if (pid == _shell_id) {
-				_running.store(false, std::memory_order_relaxed);
-			}
-		}
-	};
-
-	Signal(SIGCHLD).handle(onSigChild);
 
 #endif // THR_PLATFORM_WINDOWS
 }
@@ -331,9 +368,11 @@ void Application::getPrimaryMonitorRes(int& width, int& height)
 
 void Application::onFinish()
 {
-	if (_shell_id > 0) {
-		kill(_shell_id, SIGHUP);
+	if (SharedData.shell_id > 0 && kill(SharedData.shell_id, SIGHUP) < 0) {
+		THR_LOG_ERROR("Failed to send SIGHUP to fork: {}", SharedData.shell_id);
 	}
+
+	while (wait(nullptr) > 0);
 }
 
 } // namespace Thr

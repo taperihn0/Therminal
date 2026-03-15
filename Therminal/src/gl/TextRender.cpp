@@ -201,6 +201,7 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 
 	const glm::ivec2 cell_size = _format.getCellSize();
 	const glm::ivec2 offset = _format.getCellOffset();
+	const uint cell_per_line = _format.getCellCountVertical();
 
 	uint xpos = 0;
 	uint ypos = 0;
@@ -209,6 +210,7 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 		THR_ASSERT(ln != nullptr);
 
 		const Vec<Cell>& cells = ln->getCellLine();
+		uint cell_ln_cnt = 0;
 
 		for (const auto& cell : cells) {
 			const auto codepoint = cell.ch;
@@ -227,7 +229,13 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 				_atlas.addGlyph(codepoint);
 				id = _atlas.getGlyphInfo(codepoint, info);
 			}
-			
+
+			if (cell_ln_cnt >= cell_per_line) {
+				ypos += cell_size.y + offset.y;
+				xpos = 0;
+				cell_ln_cnt = 0;
+			}
+
 			buffer.push_back(ShaderCellInfo{
 				glm::u32vec2{ xpos, ypos },
 				id,
@@ -237,6 +245,7 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 
 			THR_ASSERT(info.advance == static_cast<int>(cell_size.x));
 			xpos += cell_size.x + offset.x;
+			cell_ln_cnt++;
 		}
 
 		ypos += cell_size.y + offset.y;
