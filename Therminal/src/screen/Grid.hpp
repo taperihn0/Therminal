@@ -15,16 +15,17 @@ public:
 	void clear();
 	void push(Ptr<const Line> ptr);
 	void reserve(size_t ns);
+	void reverse();
 	const Vec<Ptr<const Line>>& getVec() const;
 private:
-	static constexpr size_t DefaultBufSize = 512;
-	Vec<Ptr<const Line>> v;
+	static constexpr size_t _DefaultBufSize = 512;
+	Vec<Ptr<const Line>> _v;
 };
 
 class Grid
 {
 public:
-	Grid(size_t ln_width);
+	Grid();
 
 	void specifyRenderFormat(const RenderFormat& format);
 	void putChar(char32_t c, const EscapeState* state);
@@ -32,11 +33,12 @@ public:
 	std::shared_ptr<const LinePtrBuf> getVisibleLines() const;
 private:
 	static constexpr size_t     _BufSize = 0x10000;
-	const size_t                _ln_width;
+	size_t                		_ln_width;
 	OutputStreamTransl          _utf8_utf32;
-	size_t                      _cursor_pos;
+	size_t 						_start_ln_pos;
+	size_t                      _curr_ln_pos;
 	Arr<Line, _BufSize>         _ln_buf;
-	RenderFormat                _render_format;
+	RenderFormat                _render_fmt;
 	bool                        _formated;
 	std::shared_ptr<LinePtrBuf> _ln_ptrs;
 };

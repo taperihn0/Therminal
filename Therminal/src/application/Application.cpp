@@ -155,10 +155,10 @@ Application::Application(int argc, char* argv[])
 	, _monitor_width(-1)
 	, _monitor_height(-1)
 	, _fdm(-1)
-	, _grid(std::make_shared<Grid>(1024))
-	, _render_format(
-			0, // unknown so far
-			0, // unknown so far
+	, _grid(std::make_shared<Grid>())
+	, _render_fmt(
+			0,
+			0,
 			0, 
 			24,
 			1,
@@ -180,7 +180,8 @@ void Application::run()
 {
 	THR_LOG_INFO("Welcome to Therminal!");
 
-	while (_window->isOpen() && SharedData.running.load(std::memory_order_relaxed)) {
+	while (_window->isOpen() && 
+		   SharedData.running.load(std::memory_order_relaxed)) {
 		_text_render.clearScreen(Color4f{ 0.1f, 0.1f, 0.1f, 1.f });
 
 		int n = 0;
@@ -240,12 +241,15 @@ void Application::init()
 	_parser.writeTo(_grid);
 
 	/* Setup render format and initialize text rendering */
-	_render_format.setWindowSize(glm::ivec2(_window->getWidth(),
-										    _window->getHeight()));
+	_render_fmt.setWindowSize(glm::ivec2(_window->getWidth(),
+										 _window->getHeight()));
 										
-	_text_render.init(_render_format);
+	_text_render.init(_render_fmt);
 
-	_grid->specifyRenderFormat(_render_format);
+	/* Get true text render format. */
+	_text_render.getRenderFormat(_render_fmt);
+	
+	_grid->specifyRenderFormat(_render_fmt);
 
 	/* Create shell stream workflow */
 	createShellFork();
@@ -293,8 +297,8 @@ void Application::createShellFork()
 		THR_LOG_ERROR("Failed to generate interactive termios");
 	}
 
-	slave_winsize.ws_col = _render_format.getCellCountHorizontal();
-	slave_winsize.ws_row = _render_format.getCellCountVertical();
+	slave_winsize.ws_col = _render_fmt.getCellCountHorizontal();
+	slave_winsize.ws_row = _render_fmt.getCellCountVertical();
 
 	pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
 				   std::addressof(slave_termios), std::addressof(slave_winsize));

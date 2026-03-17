@@ -23,13 +23,7 @@ THR_INTERNAL OutputStreamTransl::OutputStreamTransl()
 	: _utf8("")
 	, _to_read(0)
 	, _it()
-{
-	std::string_view loc = std::setlocale(LC_ALL, nullptr);
-
-	if (loc != "en_US.UTF-8") {
-		std::setlocale(LC_ALL, "en_US.UTF-8");
-	}
-}
+{}
 
 THR_INLINE void OutputStreamTransl::setBuf(std::string_view utf8)
 {

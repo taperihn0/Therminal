@@ -21,12 +21,13 @@ class TextRender
 public:
 	TextRender();
 	~TextRender();
-	
-	void init(const RenderFormat& spec);
 
 	TextRender(const TextRender&) = delete;
 	TextRender(TextRender&&) = delete;
 
+	void init(const RenderFormat& fmt);
+	void getRenderFormat(RenderFormat& fmt);
+		
 	TextRender operator=(const TextRender&) = delete;
 	TextRender operator=(TextRender&&) = delete;
 
@@ -51,7 +52,7 @@ private:
 	std::shared_ptr<GLuint>		   _vao_id_ptr;
 	GLuint						   _base_vbo_id;
 	GLuint						   _vbo_id;
-	RenderFormat				   _format;
+	RenderFormat				   _fmt;
 	uint 						   _cols;
 	uint 						   _rows;
 	std::unique_ptr<ShaderProgram> _shader;

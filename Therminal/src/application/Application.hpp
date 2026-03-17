@@ -63,7 +63,7 @@ private:
 	int                     _fdm;
 	std::shared_ptr<Grid>   _grid;
 	OutputParser			_parser;
-	RenderFormat 			_render_format;
+	RenderFormat 			_render_fmt;
 	TextRender				_text_render;
 };
 

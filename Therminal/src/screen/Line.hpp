@@ -2,6 +2,7 @@
 
 #include "Common.hpp"
 #include "col/Color.hpp"
+#include "char/Char.hpp"
 
 namespace Thr
 {
@@ -15,6 +16,8 @@ struct Cell
 
 struct EscapeState;
 
+/* Represent single line of cells.
+*/
 class Line
 {
 public:
@@ -23,14 +26,20 @@ public:
     
     void clear();
 
-    void resize(size_t width);
-    void putChar(char32_t ch, const EscapeState* state);
+    /* Returns number of visible cells in 
+    *  current line.
+    */
+    size_t getPrintableCount() const;
 
-    const Vec<Cell> getCellLine() const;
+    void reserve(size_t width);
+    void putChar(Char32 ch, const EscapeState* state);
+
+    const Vec<Cell> getVec() const;
 private:
-    static constexpr size_t _WidthLimit = 0x800;
-    size_t                  _width = 0;
-    Vec<Cell>               _ln; 
+    static constexpr size_t _BufSizeLimit = 0x800;
+    size_t                  _buf_size = 0;
+    size_t                  _printable_cnt = 0;
+    Vec<Cell>               _ln;
 };
 
 } // namespace Thr

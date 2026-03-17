@@ -17,7 +17,7 @@ TextRender::TextRender()
 	, _vao_id_ptr(nullptr)
 	, _base_vbo_id(0)
 	, _vbo_id(0)
-	, _format(0, 0, 0, 0, 0, 0)
+	, _fmt(0, 0, 0, 0, 0, 0)
 	, _cols(0)
 	, _rows(0)
 	, _shader(std::make_unique<ShaderProgram>())
@@ -25,7 +25,7 @@ TextRender::TextRender()
 	, _initialized(false)
 {}
 
-void TextRender::init(const RenderFormat& spec)
+void TextRender::init(const RenderFormat& fmt)
 {
 	if (_initialized) {
 		THR_LOG_ERROR("TextRender subsystem is already initialized, can't initialize again");
@@ -33,23 +33,23 @@ void TextRender::init(const RenderFormat& spec)
 	}
 
 	// save format specifiers
-	_format = spec;
+	_fmt = fmt;
 
 	_vao_id_ptr = std::make_shared<GLuint>(0);
 
 	glGenVertexArrays(1, _vao_id_ptr.get());
 
-	const glm::ivec2 g_cell_size = _format.getCellSize();
+	const glm::ivec2 g_cell_size = _fmt.getCellSize();
 	_atlas.init(_vao_id_ptr, g_cell_size.y);
 
 	glm::ivec2 res_cell_size;
 	_atlas.getGlyphPixSize(res_cell_size.x, res_cell_size.y);
 	
 	THR_LOG_INFO("Cell size at RenderFormat set to: {}", res_cell_size.x);
-	_format.setCellSize(res_cell_size);
+	_fmt.setCellSize(res_cell_size);
 
-	_cols = _format.getCellCountVertical();
-	_rows = _format.getCellCountHorizontal();
+	_cols = _fmt.getCellCountVertical();
+	_rows = _fmt.getCellCountHorizontal();
 
 	glBindVertexArray(*_vao_id_ptr);
 	THR_HARD_ASSERT(*_vao_id_ptr != 0 && glIsVertexArray(*_vao_id_ptr) == GL_TRUE);
@@ -137,8 +137,8 @@ void TextRender::init(const RenderFormat& spec)
 	{
 		_shader->prog.useProgram();
 
-		const glm::ivec2 window_size = _format.getWindowSize();
-		const glm::ivec2 cell_size = _format.getCellSize();
+		const glm::ivec2 window_size = _fmt.getWindowSize();
+		const glm::ivec2 cell_size = _fmt.getCellSize();
 
 		_shader->prog.setUniform2<GLuint>("ScreenResPix", window_size.x, window_size.y);
 		_shader->prog.setUniform2<GLuint>("CellSizePix",  cell_size.x, cell_size.y);
@@ -167,6 +167,16 @@ void TextRender::init(const RenderFormat& spec)
 	}
 
 	_initialized = true;
+}
+
+void TextRender::getRenderFormat(RenderFormat& fmt)
+{
+	if (!_initialized) {
+		THR_LOG_ERROR("Querying render format of unitialized TextRender");
+		return;
+	}
+
+	fmt = _fmt;
 }
 
 TextRender::~TextRender() 
@@ -199,9 +209,8 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 	Vec<ShaderCellInfo> buffer;
 	buffer.reserve(total_cells); // TODO: preallocate that and reuse every time we got here
 
-	const glm::ivec2 cell_size = _format.getCellSize();
-	const glm::ivec2 offset = _format.getCellOffset();
-	const uint cell_per_line = _format.getCellCountVertical();
+	const glm::ivec2 cell_size = _fmt.getCellSize();
+	const glm::ivec2 offset = _fmt.getCellOffset();
 
 	uint xpos = 0;
 	uint ypos = 0;
@@ -209,7 +218,7 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 	for (const auto& ln : packet.ln_ptrs->getVec()) {
 		THR_ASSERT(ln != nullptr);
 
-		const Vec<Cell>& cells = ln->getCellLine();
+		const Vec<Cell>& cells = ln->getVec();
 		uint cell_ln_cnt = 0;
 
 		for (const auto& cell : cells) {
@@ -230,12 +239,6 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 				id = _atlas.getGlyphInfo(codepoint, info);
 			}
 
-			if (cell_ln_cnt >= cell_per_line) {
-				ypos += cell_size.y + offset.y;
-				xpos = 0;
-				cell_ln_cnt = 0;
-			}
-
 			buffer.push_back(ShaderCellInfo{
 				glm::u32vec2{ xpos, ypos },
 				id,
@@ -249,6 +252,7 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 		}
 
 		ypos += cell_size.y + offset.y;
+		xpos = 0;
 	}
 
 	THR_ASSERT(!buffer.empty());

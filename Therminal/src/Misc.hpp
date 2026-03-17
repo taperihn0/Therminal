@@ -34,7 +34,8 @@ decltype(auto) getNthArgument(Ts&&... args)
 }
 
 // Credits: https://github.com/glfw/glfw/issues/2036 by @wintertime
-THR_INLINE bool glfwIsInitialized() {
+THR_INLINE bool glfwIsInitialized() 
+{
    markUnused(glfwGetKeyScancode(GLFW_KEY_0));
    return glfwGetError(nullptr) != GLFW_NOT_INITIALIZED;
 }
