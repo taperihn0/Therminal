@@ -35,11 +35,14 @@ public:
     void putChar(Char32 ch, const EscapeState* state);
 
     const Vec<Cell> getVec() const;
+
+    void trimToNewLine();
 private:
     static constexpr size_t _BufSizeLimit = 0x800;
     size_t                  _buf_size = 0;
     size_t                  _printable_cnt = 0;
     Vec<Cell>               _ln;
+    size_t                  _ln_num;
 };
 
 } // namespace Thr

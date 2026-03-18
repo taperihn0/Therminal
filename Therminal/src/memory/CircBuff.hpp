@@ -22,6 +22,8 @@ public:
 
 	THR_INLINE bool isFull() const;
 	THR_INLINE bool isEmpty() const;
+
+	THR_INLINE size_t getSize() const;
 private:
 	static constexpr size_t _CntLimit = 0x10000;
 

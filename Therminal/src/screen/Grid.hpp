@@ -32,15 +32,20 @@ public:
 
 	std::shared_ptr<const LinePtrBuf> getVisibleLines() const;
 private:
+	size_t advanceWriteIdx();
+	size_t decreaseWriteIdx();
+	void processCarriageReturn();
+
 	static constexpr size_t     _BufSize = 0x10000;
 	size_t                		_ln_width;
 	OutputStreamTransl          _utf8_utf32;
 	size_t 						_start_ln_pos;
-	size_t                      _curr_ln_pos;
+	size_t                      _write_pos;
 	Arr<Line, _BufSize>         _ln_buf;
 	RenderFormat                _render_fmt;
 	bool                        _formated;
 	std::shared_ptr<LinePtrBuf> _ln_ptrs;
+	size_t   					_last_nl_pos;
 };
 
 } // namespace Thr

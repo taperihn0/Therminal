@@ -5,8 +5,7 @@ namespace Thr
 {
    
 ThreadWorker::ThreadWorker()
-	: _is_buff(nullptr)
-	, _os_buff(nullptr)
+	: _shell_client(nullptr)
 	, _running(false)
 	, _ptymfd(-1)
 {}
@@ -16,12 +15,15 @@ ThreadWorker::~ThreadWorker()
 	stop();
 }
 
-void ThreadWorker::init(Ptr<InputRingBuffer> is, 
-						Ptr<OutputBuffer> os,
+void ThreadWorker::init(Ptr<IOShellClient> shell_client,
 						int ptym)
 {
-	_is_buff = is;
-	_os_buff = os;
+	if (!shell_client) {
+		THR_LOG_FATAL("Invalid shell client pointer");
+		return;
+	}
+
+	_shell_client = shell_client;
 	_ptymfd = ptym;   
 }
 
@@ -53,7 +55,13 @@ void ThreadWorker::thrExecution()
 
 	int nread;
 
-	byte buff[OutputBuffer::BuffSize];
+	const size_t output_buf_size = _shell_client->getOutputBuf()
+												  .getSize();
+	const size_t input_buf_size = _shell_client->getInputBuf()
+												 .getCapacity();
+
+	std::unique_ptr<byte[]> output_buf = std::make_unique<byte[]>(output_buf_size);
+	std::unique_ptr<byte[]> input_buf = std::make_unique<byte[]>(input_buf_size);
 
 	struct pollfd pfd;
 	pfd.fd = _ptymfd;
@@ -66,18 +74,17 @@ void ThreadWorker::thrExecution()
 			break;
 
 		if (pfd.revents & (POLLIN | POLLHUP | POLLERR)) { /* copies ptym to output */
-			if ((nread = read(pfd.fd, buff, sizeof(buff))) <= 0)
+			if ((nread = read(pfd.fd, output_buf.get(), sizeof(output_buf))) <= 0)
 				break;
 			
-			_os_buff->write(buff, nread);
+			const BytesBuf bytes = { output_buf.get(), nread };
+			_shell_client->writeBytes(bytes);
 		}
- 
-		if (_is_buff->isReady()) { /* copies input to ptym */
-			const char ch = _is_buff->get();
-			
-			// TODO: handle EOF
 
-			if (writen(pfd.fd, &ch, 1) != sizeof(ch))
+		MutBytesBuf read_buf = { input_buf.get(), static_cast<int>(input_buf_size) };
+
+		if (_shell_client->readBytes(read_buf)) {
+			if (writen(pfd.fd, read_buf.ptr, read_buf.n) != read_buf.n)
 				THR_LOG_ERROR("writen error to master pty");
 		}
 	}

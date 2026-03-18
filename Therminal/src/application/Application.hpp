@@ -12,8 +12,7 @@
 #include "io/OutputParser.hpp"
 #include "gl/TextRender.hpp"
 #include "gl/RenderFormat.hpp"
-#include "Signal.hpp"
-#include <atomic>
+#include "shell/Shell.hpp"
 
 namespace Thr 
 {
@@ -28,9 +27,7 @@ public:
 	void run();
 private:
 	void init();
-	void createShellFork();
 	void getPrimaryMonitorRes(int& width, int& height);
-	void onFinish();
 
 	/* custom event callbacks */
 	static void winErrorCallback(ErrorEvent ev);
@@ -47,24 +44,17 @@ private:
 	static void winMouseMoveCallback(MouseMoveEvent ev);
 	static void winMouseScrollCallback(MouseScrollEvent ev);
 	
-	struct _IO
-	{
-		InputEvTransl   input_ev_transl;
-		InputRingBuffer input_circ_buff;
-		OutputBuffer    output_buff;
-		ThreadWorker    worker;
-	};
-
-	static _IO 				_io;
-	FilePath                _cwd;
-	std::unique_ptr<Window> _window;
-	int                     _monitor_width;
-	int                     _monitor_height;
-	int                     _fdm;
-	std::shared_ptr<Grid>   _grid;
-	OutputParser			_parser;
-	RenderFormat 			_render_fmt;
-	TextRender				_text_render;
+	FilePath                  _cwd;
+	std::unique_ptr<Window>   _window;
+	int                       _monitor_width;
+	int                       _monitor_height;
+	std::shared_ptr<Grid>     _grid;
+	OutputParser			  _parser;
+	RenderFormat 			  _render_fmt;
+	TextRender				  _text_render;
+	Shell 				      _shell;
+	std::shared_ptr<IOBridge> _io_bridge;
+	static IOAppClient		  _client;
 };
 
 } // namespace Thr

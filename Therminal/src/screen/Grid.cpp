@@ -22,10 +22,9 @@ void LinePtrBuf::push(Ptr<const Line> ptr)
 
 void LinePtrBuf::reserve(size_t ns)
 {
-	if (ns > _v.size()) {
-		THR_LOG_DEBUG("Line pointers buffer reallocation from size of {} to {}", 
-					  _v.size(), 
-					  ns);
+	if (ns > _v.capacity()) {
+		THR_LOG_DEBUG("Line pointers buffer reallocation from capacity of {} to {}", 
+					  _v.size(), ns);
 	}
 
 	_v.reserve(ns);
@@ -44,11 +43,12 @@ const Vec<Ptr<const Line>>& LinePtrBuf::getVec() const
 Grid::Grid()
 	: _ln_width(0)
 	, _start_ln_pos(0)
-	, _curr_ln_pos(0)
+	, _write_pos(0)
 	, _ln_buf{}
 	, _render_fmt{}
 	, _formated(false)
 	, _ln_ptrs(std::make_shared<LinePtrBuf>())
+	, _last_nl_pos(0)
 {}
 
 void Grid::specifyRenderFormat(const RenderFormat& format)
@@ -67,23 +67,36 @@ void Grid::putChar(char32_t c, const EscapeState* state)
 {
 	THR_ASSERT_LOG(_formated, "Cannot add char for unknown render format");
 
+	Line& curr_ln = _ln_buf[_write_pos];
+
 	if (c == U'\n') {
-		_curr_ln_pos = (_curr_ln_pos + 1) % _BufSize;
-
-		if (_curr_ln_pos == _start_ln_pos)
-			_start_ln_pos = (_start_ln_pos + 1) % _BufSize;
-
+		advanceWriteIdx();
+		++_last_nl_pos;
 		return;
 	}
 
-	Line& curr_ln = _ln_buf[_curr_ln_pos];
+	bool put_char = true;
+	
+	/* Handle special control characters */
+	switch (c) {
+	case U'\n':
+		_last_nl_pos = _write_pos;
+		advanceWriteIdx();
+		put_char = false;
+		break;
+	//case U'\r':
+	//	processCarriageReturn();
+	//	put_char = false;
+	//	break;
+	}
+
+	if (!put_char)
+		return;
+
 	curr_ln.putChar(c, state);
 
 	if (curr_ln.getPrintableCount() >= _ln_width) {
-		_curr_ln_pos = (_curr_ln_pos + 1) % _BufSize;
-
-		if (_curr_ln_pos == _start_ln_pos)
-			_start_ln_pos = (_start_ln_pos + 1) % _BufSize;
+		advanceWriteIdx();
 	}
 }
 
@@ -91,7 +104,6 @@ std::shared_ptr<const LinePtrBuf> Grid::getVisibleLines() const
 {
 	THR_ASSERT_LOG(_formated, "Cannot specify visible lines for unknown render format");
 
-	const int ln_cell_cnt = _render_fmt.getCellCountVertical();
 	const int total_line_cnt = _render_fmt.getCellCountHorizontal();
 
 	_ln_ptrs->clear();
@@ -99,9 +111,7 @@ std::shared_ptr<const LinePtrBuf> Grid::getVisibleLines() const
 
 	int line_cnt = 0;
 
-	THR_LOG_DEBUG("{}", _curr_ln_pos);
-
-	for (int ln_pos = _curr_ln_pos;
+	for (int ln_pos = _write_pos;
 		 ;
 		 ln_pos = (ln_pos - 1) % _BufSize)
 	{
@@ -117,6 +127,35 @@ std::shared_ptr<const LinePtrBuf> Grid::getVisibleLines() const
 	
 	_ln_ptrs->reverse();
 	return _ln_ptrs;
+}
+
+THR_FORCEINLINE size_t Grid::advanceWriteIdx() 
+{
+	_write_pos = (_write_pos + 1) % _BufSize;
+
+	if (_write_pos == _start_ln_pos)
+		_start_ln_pos = (_start_ln_pos + 1) % _BufSize;
+
+	return _write_pos;
+}
+
+size_t Grid::decreaseWriteIdx()
+{
+	_write_pos = (_write_pos - 1) % _BufSize;
+
+	if (_write_pos == _start_ln_pos)
+		_start_ln_pos = (_start_ln_pos - 1) % _BufSize;
+
+	return _write_pos;
+}
+
+void Grid::processCarriageReturn()
+{
+	while (_write_pos != _last_nl_pos)
+		decreaseWriteIdx();
+
+	Line& curr_ln = _ln_buf[_write_pos];
+	curr_ln.trimToNewLine();
 }
 
 } // namespace Thr

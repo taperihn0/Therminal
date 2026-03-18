@@ -1,33 +1,30 @@
 #pragma once
 
-#include "InputBuffer.hpp"
-#include "InputTranslator.hpp"
-#include "OutputBuffer.hpp"
+#include "Common.hpp"
+#include "IOBridge.hpp"
 #include <thread>
 
 namespace Thr
 {
-   
+	
 class ThreadWorker
 {
 public:
-   ThreadWorker();
-   ~ThreadWorker();
+	ThreadWorker();
+	~ThreadWorker();
 
-   void init(Ptr<InputRingBuffer> is, 
-             Ptr<OutputBuffer> os,
-             int ptym);
-   
-   void spawn();
-   void stop();
+	void init(Ptr<IOShellClient> shell_client,
+			  int ptym);
+	
+	void spawn();
+	void stop();
 private:
-   void thrExecution();
+	void thrExecution();
 
-   std::thread          _thr;
-   Ptr<InputRingBuffer> _is_buff;
-   Ptr<OutputBuffer>    _os_buff;
-   bool                 _running;
-   int                  _ptymfd;
+	std::thread        _thr;
+	Ptr<IOShellClient> _shell_client;
+	bool               _running;
+	int                _ptymfd;
 };
 
 } // namespace Thr

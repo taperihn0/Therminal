@@ -4,20 +4,14 @@
 #include "core/pty.h"
 #include "core/tty_man.h"
 #include "gl/Utils.hpp"
+#include <atomic>
 
 //#define LOG_KEY_EV
 
 namespace Thr 
 {
 
-static constexpr size_t InputRingSize = 512;
-
-Application::_IO Application::_io = { 
-	InputEvTransl(),
-	InputRingBuffer(InputRingSize),
-	OutputBuffer(),
-	ThreadWorker()
-};
+IOAppClient Application::_client;
 
 void Application::winErrorCallback(ErrorEvent ev)
 {
@@ -55,14 +49,7 @@ void Application::winKeyPressCallback(KeyPressEvent ev)
 	THR_LOG_DEBUG("Event press callback: keycode {}, mods {}", state.keycode, state.mods);
 #endif
 
-	const std::string data = _io.input_ev_transl.translate(ev);
-
-	if (!ev.isHandled())
-		return;
-
-	for (char c : data) {
-		_io.input_circ_buff.put(c);
-	}
+	_client.sendEvent(ev);
 }
 
 void Application::winKeyReleaseCallback(KeyReleaseEvent ev)
@@ -77,14 +64,7 @@ void Application::winKeyRepeatCallback(KeyRepeatEvent ev)
 	THR_LOG_DEBUG("Event repeat callback: keycode {}, mods {}", state.keycode, state.mods);
 #endif
 
-	const std::string data = _io.input_ev_transl.translate(ev);
-
-	if (!ev.isHandled())
-		return;
-
-	for (char c : data) {
-		_io.input_circ_buff.put(c);
-	}
+	_client.sendEvent(ev);
 }
 
 void Application::winKeyTypeCallback(KeyTypeEvent ev)
@@ -94,14 +74,7 @@ void Application::winKeyTypeCallback(KeyTypeEvent ev)
 	THR_LOG_DEBUG("Event type callback: keycode {}, mods {}", state.keycode, state.mods);
 #endif
 
-	const std::string data = _io.input_ev_transl.translate(ev);
-
-	if (!ev.isHandled())
-		return;
-
-	for (char c : data) {
-		_io.input_circ_buff.put(c);
-	}
+	_client.sendEvent(ev);
 }
 
 void Application::winMousePressCallback(MousePressEvent ev)
@@ -124,37 +97,11 @@ void Application::winMouseScrollCallback(MouseScrollEvent ev)
 	markUnused(ev);
 }
 
-struct SignalSharedData
-{
-	std::atomic<pid_t> shell_id;
-	std::atomic<bool>  running;
-};
-
-static SignalSharedData SharedData = { 0, true };
-
-void onSigChild(THR_UNUSED int sig)
-{
-	int status;
-	pid_t pid;
-
-	while ((pid = waitpid(-1, std::addressof(status), WNOHANG)) > 0) {
-		if (pid == SharedData.shell_id) {
-			SharedData.running.store(false, std::memory_order_relaxed);
-		}
-	}
-}
-
-void onSigTerm(THR_UNUSED int sig) 
-{
-	SharedData.running.store(false, std::memory_order_relaxed);
-}
-
 Application::Application(int argc, char* argv[]) 
 	: _cwd(FilePath::getCurrentDirectory()) 
 	, _window(std::make_unique<Window>())
 	, _monitor_width(-1)
 	, _monitor_height(-1)
-	, _fdm(-1)
 	, _grid(std::make_shared<Grid>())
 	, _render_fmt(
 			0,
@@ -164,6 +111,7 @@ Application::Application(int argc, char* argv[])
 			1,
 			1
 		)
+	, _io_bridge(std::make_shared<IOBridge>(512, 4096))
 {
    init();
 
@@ -180,16 +128,14 @@ void Application::run()
 {
 	THR_LOG_INFO("Welcome to Therminal!");
 
-	while (_window->isOpen() && 
-		   SharedData.running.load(std::memory_order_relaxed)) {
+	while (_window->isOpen() && _shell.running()) {
 		_text_render.clearScreen(Color4f{ 0.1f, 0.1f, 0.1f, 1.f });
 
-		int n = 0;
-		const byte* ptr = _io.output_buff.read(n);
-		_io.output_buff.swap();
+		BytesBuf buf = { nullptr, 0 };
+		_client.readBytes(buf);
 
-		if (n > 0) {
-			_parser.parseToGrid(ptr, n);
+		if (buf.n > 0) {
+			_parser.parseToGrid(buf.ptr, buf.n);
 
 			const RenderFramePacket packet = {
 				_grid->getVisibleLines()
@@ -199,11 +145,8 @@ void Application::run()
 		}
 		
 		_text_render.renderText();
-
 		_window->update();
 	}
-
-	onFinish();
 }
 
 void Application::init() 
@@ -252,100 +195,10 @@ void Application::init()
 	_grid->specifyRenderFormat(_render_fmt);
 
 	/* Create shell stream workflow */
-	createShellFork();
-}
+	_client.bindBridge(_io_bridge);
+	_shell.init(_io_bridge, _render_fmt);
 
-void Application::createShellFork()
-{
-#if defined(THR_PLATFORM_WINDOWS)
-
-// WINDOWS IMPLEMENTATION HERE
-
-#else
-
-	pid_t pid;
-	char slave_name[20];
-
-	/* Block incoming signals for now.
-	*  Make sure it got handled by the parent properly after the fork.
-	*/
-
-	sigset_t sigset, prev_sigset;
-
-	if (sigemptyset(std::addressof(sigset)) < 0)
-		THR_LOG_ERROR("Failed to 'sigemptyset'");
-
-	if (sigaddset(std::addressof(sigset), SIGCHLD) < 0 ||
-		sigaddset(std::addressof(sigset), SIGUSR1) < 0)
-		THR_LOG_ERROR("Failed to 'sigaddset'");
-
-	if (sigprocmask(SIG_BLOCK, 
-					std::addressof(sigset), 
-					std::addressof(prev_sigset)) < 0) 
-		THR_LOG_ERROR("Failed to 'sigprocmask'");
-
-	/* setup terminal file for slave */
-
-	struct termios slave_termios;
-	struct winsize slave_winsize;
-
-	if (isatty(STDIN_FILENO)) { /* use native termios */
-		if (save_termios(STDIN_FILENO, std::addressof(slave_termios)) < 0)
-			THR_LOG_ERROR("Failed to save origin termios attributes");
-	}
-	else if (interactive_termios(std::addressof(slave_termios)) < 0) {
-		THR_LOG_ERROR("Failed to generate interactive termios");
-	}
-
-	slave_winsize.ws_col = _render_fmt.getCellCountHorizontal();
-	slave_winsize.ws_row = _render_fmt.getCellCountVertical();
-
-	pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
-				   std::addressof(slave_termios), std::addressof(slave_winsize));
-
-	if (pid < 0) {
-		THR_HARD_ASSERT_LOG(false, "fork error");
-	} 
-	else if (pid == 0) { /* child */ 
-		if (sigprocmask(SIG_SETMASK, std::addressof(prev_sigset), nullptr) < 0)
-			THR_LOG_ERROR("Failed to 'sigprocmask'"); // might not display properly
-
-		char shell[] = "sh";
-
-		if (execlp(shell, "-sh", "-l", nullptr) < 0) {
-			THR_LOG_FATAL_FRAME_INFO("Can't execute: {}", shell);
-			
-			if (kill(getppid(), SIGTERM) < 0) {
-				exit(-1);
-			}
-
-			exit(0);
-		}
-		
-		/* Never returns */
-	}
-
-	/* parent */
-
-	SharedData.shell_id = pid;
-
-	Signal(SIGCHLD).handle(onSigChild);
-	Signal(SIGUSR1).handle(onSigTerm);
-
-	/* Unblock pending signals */
-
-	if (sigprocmask(SIG_SETMASK, std::addressof(prev_sigset), nullptr) < 0)
-		THR_LOG_ERROR("Failed to 'sigprocmask'");
-	
-	THR_LOG_DEBUG("Slave name = {}", slave_name);
-
-	_io.worker.init(std::addressof(_io.input_circ_buff), 
-					std::addressof(_io.output_buff), 
-					_fdm);
-
-	_io.worker.spawn();
-
-#endif // THR_PLATFORM_WINDOWS
+	_shell.createFork();
 }
 
 void Application::getPrimaryMonitorRes(int& width, int& height)
@@ -368,15 +221,6 @@ void Application::getPrimaryMonitorRes(int& width, int& height)
 
 	width = mode->width;
 	height = mode->height;
-}
-
-void Application::onFinish()
-{
-	if (SharedData.shell_id > 0 && kill(SharedData.shell_id, SIGHUP) < 0) {
-		THR_LOG_ERROR("Failed to send SIGHUP to fork: {}", SharedData.shell_id);
-	}
-
-	while (wait(nullptr) > 0);
 }
 
 } // namespace Thr

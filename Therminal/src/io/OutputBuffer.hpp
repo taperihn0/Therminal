@@ -10,21 +10,21 @@ namespace Thr
 class OutputBuffer 
 {
 public:
-	OutputBuffer();
+	OutputBuffer(size_t buf_size);
 
 	THR_INLINE void swap();
 	THR_INLINE void write(const byte* buf, int n);
 	THR_INLINE const byte* read(int& n) const;
-	
-	static constexpr size_t BuffSize = 0x1000;
+	THR_INLINE size_t getSize() const;
 private:
 	struct _FlipBuff;
 
-	static constexpr size_t      	_WriteSideBuff = 0;
-	static constexpr size_t      	_ReadSideBuff  = 1;
-	std::unique_ptr<_FlipBuff> 		_buff_ptr[2];
-	mutable std::mutex              _read_mutex;
-	mutable std::mutex              _write_mutex;
+	static constexpr size_t    _WriteSideBuff = 0;
+	static constexpr size_t    _ReadSideBuff  = 1;
+	const size_t 			   _buf_size;
+	std::unique_ptr<_FlipBuff> _buff_ptr[2];
+	mutable std::mutex         _read_mutex;
+	mutable std::mutex         _write_mutex;
 
 	struct _FlipBuff
 	{
@@ -37,10 +37,11 @@ private:
 	};
 };
 
-THR_INTERNAL OutputBuffer::OutputBuffer()
-	: _buff_ptr{ 
-		std::make_unique<_FlipBuff>(BuffSize), 
-		std::make_unique<_FlipBuff>(BuffSize) }
+THR_INTERNAL OutputBuffer::OutputBuffer(size_t buf_size)
+	: _buf_size(buf_size)
+	, _buff_ptr{ 
+		std::make_unique<_FlipBuff>(_buf_size), 
+		std::make_unique<_FlipBuff>(_buf_size) }
 {}
 
 THR_INLINE void OutputBuffer::swap()
@@ -52,12 +53,12 @@ THR_INLINE void OutputBuffer::swap()
 	
 THR_INLINE void OutputBuffer::write(const byte* buf, int n) 
 {
-	THR_HARD_ASSERT(n >= 0 && n < static_cast<int>(BuffSize));
+	THR_HARD_ASSERT(n >= 0 && n < static_cast<int>(_buf_size));
 	std::lock_guard<std::mutex> lock(_write_mutex);
 
 	_FlipBuff& write_buff = *_buff_ptr[_WriteSideBuff];
 
-	THR_HARD_ASSERT(write_buff.n + n < static_cast<int>(BuffSize));
+	THR_HARD_ASSERT(write_buff.n + n < static_cast<int>(_buf_size));
 
 	memCpy(write_buff.ptr.get() + write_buff.n, 
 		   buf, 
@@ -73,6 +74,11 @@ THR_INLINE const byte* OutputBuffer::read(int& n) const
 	const byte* r = read_buff.ptr.get();
 	n = read_buff.n;
 	return r;
+}
+
+THR_INLINE size_t OutputBuffer::getSize() const
+{
+	return _buf_size;
 }
 
 THR_INTERNAL OutputBuffer::_FlipBuff::_FlipBuff(size_t buf_size)

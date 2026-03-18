@@ -109,4 +109,11 @@ THR_INLINE void CircularBuff<T>::advanceWriteIdx()
 	}
 }
 	
+template <typename T>
+THR_INLINE size_t CircularBuff<T>::getSize() const
+{
+	return _write_idx >= _read_idx ? _write_idx - _read_idx 
+								   : _cnt - (_read_idx - _write_idx);
+}
+
 } // namespace Thr
