@@ -12,6 +12,7 @@
 #include "io/OutputParser.hpp"
 #include "gl/TextRender.hpp"
 #include "gl/RenderFormat.hpp"
+#include "gl/Atlas.hpp"
 #include "shell/Shell.hpp"
 
 namespace Thr 
@@ -44,17 +45,19 @@ private:
 	static void winMouseMoveCallback(MouseMoveEvent ev);
 	static void winMouseScrollCallback(MouseScrollEvent ev);
 	
-	FilePath                  _cwd;
-	std::unique_ptr<Window>   _window;
-	int                       _monitor_width;
-	int                       _monitor_height;
-	std::shared_ptr<Grid>     _grid;
-	OutputParser			  _parser;
-	RenderFormat 			  _render_fmt;
-	TextRender				  _text_render;
-	Shell 				      _shell;
-	std::shared_ptr<IOBridge> _io_bridge;
-	static IOAppClient		  _client;
+	FilePath                   _cwd;
+	std::unique_ptr<Window>    _window;
+	int                        _monitor_width;
+	int                        _monitor_height;
+	std::shared_ptr<Grid>      _grid;
+	OutputParser			   _parser;
+	RenderFormat 			   _render_fmt;
+	TextRender				   _text_render;
+	Shell 				       _shell;
+	std::shared_ptr<Font> 	   _font;
+	std::shared_ptr<FontAtlas> _atlas;
+	std::shared_ptr<IOBridge>  _io_bridge;
+	static IOAppClient		   _client;
 };
 
 } // namespace Thr

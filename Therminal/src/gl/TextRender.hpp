@@ -5,6 +5,7 @@
 #include "screen/Line.hpp"
 #include "RenderFormat.hpp"
 #include "screen/Grid.hpp"
+#include "Atlas.hpp"
 
 namespace Thr
 {
@@ -25,7 +26,10 @@ public:
 	TextRender(const TextRender&) = delete;
 	TextRender(TextRender&&) = delete;
 
-	void init(const RenderFormat& fmt);
+	void init(const RenderFormat& fmt, 
+			  std::shared_ptr<FontAtlas>& atlas, 
+			  std::shared_ptr<Font>& font);
+
 	void getRenderFormat(RenderFormat& fmt);
 		
 	TextRender operator=(const TextRender&) = delete;
@@ -44,11 +48,6 @@ private:
 		GLShader	  prog;
 	};
 
-	static constexpr int DefaultAtlasWidth  = 256;
-	static constexpr int DefaultAtlasHeight = 256;
-
-	FontAtlas					   _atlas;
-	// we share VAO that with atlas and other subsystems
 	std::shared_ptr<GLuint>		   _vao_id_ptr;
 	GLuint						   _base_vbo_id;
 	GLuint						   _vbo_id;
@@ -58,6 +57,8 @@ private:
 	std::unique_ptr<ShaderProgram> _shader;
 	size_t						   _cell_count;
 	bool						   _initialized;
+	std::shared_ptr<FontAtlas> 	   _atlas;
+	std::shared_ptr<Font>		   _font;
 };
 
 } // namespace Thr

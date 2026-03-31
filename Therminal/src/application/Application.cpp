@@ -97,6 +97,8 @@ void Application::winMouseScrollCallback(MouseScrollEvent ev)
 	markUnused(ev);
 }
 
+static constexpr int ReqFontPixHeight = 20;
+
 Application::Application(int argc, char* argv[]) 
 	: _cwd(FilePath::getCurrentDirectory()) 
 	, _window(std::make_unique<Window>())
@@ -104,13 +106,13 @@ Application::Application(int argc, char* argv[])
 	, _monitor_height(-1)
 	, _grid(std::make_shared<Grid>())
 	, _render_fmt(
-			0,
-			0,
-			0, 
-			24,
-			1,
-			1
+			RenderFormat::DeafultPaddingPixX,
+			RenderFormat::DeafultPaddingPixY, 
+			RenderFormat::DefaultCellCountY,
+			RenderFormat::DefaultCellCountX
 		)
+	, _font(std::make_shared<Font>())
+	, _atlas(std::make_shared<FontAtlas>())
 	, _io_bridge(std::make_shared<IOBridge>(512, 4096))
 {
    init();
@@ -151,19 +153,31 @@ void Application::run()
 
 void Application::init() 
 {
+	// Initialize GLFW context
+	if (!glfwIsInitialized()) { 
+		if (glfwInit() == GLFW_FALSE) {
+			THR_LOG_FATAL_FRAME_INFO("Failed to initialize GLFW context!");
+			return;
+		}
+	}
+
+	_font->init(FilePath("Therminal/assets/fonts/DejaVuSansMono.ttf"), ReqFontPixHeight);
+
+	const FT_Size_Metrics font_metrics = _font->getGlyphMetrics();
+	const glm::ivec2 font_size_pix = {font_metrics.max_advance >> 6, font_metrics.height >> 6};
+
+	_render_fmt.setCellSize(font_size_pix);
+
+	// Note, that we need to include lower margin of a font for the last row, 
+	// so we don't see any font cutting on lower edge of the screen
+	const int ascent_pix = font_metrics.ascender >> 6;
+	const int y_margin = font_size_pix.y - ascent_pix;
+
 	/* Setup window size and initialize glfw window */
-	getPrimaryMonitorRes(_monitor_width, _monitor_height);
-	THR_HARD_ASSERT(_monitor_width != -1 && _monitor_height != -1);
+	const uint window_width  = font_size_pix.x * _render_fmt.getCellCount().x;
+	const uint window_height = font_size_pix.y * _render_fmt.getCellCount().y + y_margin;
 
-	static constexpr float MonitorWidthFrac  = 0.33f;
-	static constexpr float MonitorHeightFrac = 0.5f;
-
-	const long window_width = std::lroundf(_monitor_width * MonitorWidthFrac);
-	const long window_height = std::lroundf(_monitor_height * MonitorHeightFrac);
-
-	_window->init(static_cast<uint>(window_width), 
-				  static_cast<uint>(window_height), 
-				  "Hello GLFW!");
+	_window->init(window_width, window_height, "Hello GLFW!");
 
 	/* Setup event callbacks */
 	_window->setErrorCallback(winErrorCallback);
@@ -183,11 +197,10 @@ void Application::init()
 	/* Specify input parser from shell proc */
 	_parser.writeTo(_grid);
 
-	/* Setup render format and initialize text rendering */
-	_render_fmt.setWindowSize(glm::ivec2(_window->getWidth(),
-										 _window->getHeight()));
-										
-	_text_render.init(_render_fmt);
+	/* Setup render format and finally create renderer buffers */
+	_render_fmt.setWindowSize(glm::ivec2(_window->getWidth(), _window->getHeight()));
+
+	_text_render.init(_render_fmt, _atlas, _font);
 
 	/* Get true text render format. */
 	_text_render.getRenderFormat(_render_fmt);

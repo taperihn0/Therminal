@@ -2,6 +2,7 @@
 
 #include "Common.hpp"
 #include "memory/Memory.hpp"
+#include "Font.hpp"
 #include <unordered_map>
 
 namespace Thr
@@ -30,14 +31,13 @@ public:
 	FontAtlas(const FontAtlas&) = delete;
 	FontAtlas(FontAtlas&& atlas);
 
-	/* Initialize Atlas resources and 
-	*  provide active vao.
+	/* Initialize Atlas resources and provide active vao.
 	*  Glyph width will be adjusted automaticaly and can be obtained later.
 	*/
-	void init(std::shared_ptr<GLuint> vao, int glyph_height);
+	void init(std::shared_ptr<Font>& font);
 
 	FontAtlas& operator=(const FontAtlas&) = delete;
-	FontAtlas& operator=(FontAtlas&& atlas);
+	FontAtlas& operator=(FontAtlas&& atlas) = delete; // no implementation 
 	
 	/* Add/probe UNICODE glyph */
 	void addGlyph(char32_t codepoint);
@@ -54,33 +54,28 @@ public:
 	GLenum getAtlasTexBufUnit() const;
 	GLenum getCharFormatBufUnit() const;
 
-	/* Get single glyph size in pixels */
-	void getGlyphPixSize(int& width, int& height) const;
+	bool isReady() const;
 private:
 	THR_INLINE void clear();
 
-	static constexpr uint DefaultAtlasWidth  = 1024;
-	static constexpr uint DefaultAtlasHeight = 1024;
+	static constexpr uint DefaultAtlasWidth  = 256;
+	static constexpr uint DefaultAtlasHeight = 256;
 	static constexpr uint DefaultGlyphHeight = 48;
 
 	std::unordered_map<char32_t, GlyphInfo> _glyph_map;
-	GLuint								    _atlas_tex_id;
-	GLuint 								    _tb_buf_uvs_id;
-	GLuint								    _tb_tex_uvs_id;
+	GLuint									_atlas_tex_id;
+	GLuint 									_tb_buf_uvs_id;
+	GLuint									_tb_tex_uvs_id;
 	GLuint 									_tb_buf_form_id;
 	GLuint 									_tb_tex_form_id;
-	FT_Library							    _ft_lib;
-	FT_Face								    _ft_face;
-	uint32_t							    _glyph_id;
-	const uint 							    _atlas_width;
-	const uint 							    _atlas_height;
-	uint									_glyph_width;
-	uint 							        _glyph_height;
+	uint32_t								_glyph_id;
+	const uint 								_atlas_width;
+	const uint 								_atlas_height;
 	uint 									_glyph_per_tb;
-	int									    _atlas_x_offset;
-	int									    _atlas_y_offset;
-	std::shared_ptr<GLuint> 				_vao;
-	bool								    _initialized;
+	int										_atlas_x_offset;
+	int										_atlas_y_offset;
+	bool									_initialized;
+	std::shared_ptr<Font> 					_font;
 };
 
 } // namespace Thr

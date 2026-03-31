@@ -36,14 +36,6 @@ namespace Thr
 Shell::Shell()
     : _io_bridge(nullptr)
     , _fdm(-1)
-    , _render_fmt(
-		0,
-		0,
-		0, 
-		24,
-		1,
-		1
-	    )
     , _initialized(false)
 {}
 
@@ -117,8 +109,8 @@ void Shell::createFork()
 		THR_LOG_ERROR("Failed to generate interactive termios");
 	}
 
-	slave_winsize.ws_col = _render_fmt.getCellCountHorizontal();
-	slave_winsize.ws_row = _render_fmt.getCellCountVertical();
+	slave_winsize.ws_col = _render_fmt.getCellCount().y;
+	slave_winsize.ws_row = _render_fmt.getCellCount().x;
 
 	pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
 				   std::addressof(slave_termios), std::addressof(slave_winsize));

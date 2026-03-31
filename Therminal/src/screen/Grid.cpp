@@ -56,7 +56,7 @@ void Grid::specifyRenderFormat(const RenderFormat& format)
 	_render_fmt = format;
 	_formated = true;
 
-	_ln_width = _render_fmt.getCellCountVertical();
+	_ln_width = _render_fmt.getCellCount().x;
 
 	std::for_each(_ln_buf.begin(), _ln_buf.end(), [&](Line& l) {
 		l.reserve(_ln_width);
@@ -69,12 +69,6 @@ void Grid::putChar(char32_t c, const EscapeState* state)
 
 	Line& curr_ln = _ln_buf[_write_pos];
 
-	if (c == U'\n') {
-		advanceWriteIdx();
-		++_last_nl_pos;
-		return;
-	}
-
 	bool put_char = true;
 	
 	/* Handle special control characters */
@@ -84,10 +78,6 @@ void Grid::putChar(char32_t c, const EscapeState* state)
 		advanceWriteIdx();
 		put_char = false;
 		break;
-	//case U'\r':
-	//	processCarriageReturn();
-	//	put_char = false;
-	//	break;
 	}
 
 	if (!put_char)
@@ -104,7 +94,7 @@ std::shared_ptr<const LinePtrBuf> Grid::getVisibleLines() const
 {
 	THR_ASSERT_LOG(_formated, "Cannot specify visible lines for unknown render format");
 
-	const int total_line_cnt = _render_fmt.getCellCountHorizontal();
+	const int total_line_cnt = _render_fmt.getCellCount().y;
 
 	_ln_ptrs->clear();
 	_ln_ptrs->reserve(total_line_cnt);

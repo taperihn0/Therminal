@@ -3,15 +3,14 @@
 namespace Thr
 {
 
-RenderFormat::RenderFormat(int window_width,
-                		   int window_height,
-                		   int cell_width,
-                		   int cell_height,
-                		   int cell_offset_x,
-                		   int cell_offset_y)
-	: _window_size(window_width, window_height)
-	, _cell_size(cell_width, cell_height)
-	, _cell_offset(cell_offset_x, cell_offset_y)
+RenderFormat::RenderFormat(int padding_x,
+				 		   int padding_y,
+						   int cell_count_x,
+						   int cell_count_y)
+	: _window_size(0, 0)
+	, _cell_size(0, 0)
+	, _padding(padding_x, padding_y)
+	, _cell_count(cell_count_y, cell_count_x)
 {}
 
 glm::ivec2 RenderFormat::setWindowSize(glm::ivec2 size)
@@ -24,9 +23,14 @@ glm::ivec2 RenderFormat::setCellSize(glm::ivec2 size)
 	return _cell_size = size;
 }
 
-glm::ivec2 RenderFormat::setCellOffset(glm::ivec2 offset)
+glm::ivec2 RenderFormat::setPadding(glm::ivec2 padding)
 {
-	return _cell_offset = offset;
+	return _padding = padding;
+}
+
+glm::ivec2 RenderFormat::setCellCount(glm::ivec2 cell_count)
+{
+	return _cell_count = cell_count;
 }
 
 glm::ivec2 RenderFormat::getWindowSize() const
@@ -39,19 +43,14 @@ glm::ivec2 RenderFormat::getCellSize() const
 	return _cell_size;
 }
 
-glm::ivec2 RenderFormat::getCellOffset() const
+glm::ivec2 RenderFormat::getPadding() const
 {
-	return _cell_offset;
+	return _padding;
 }
 
-int RenderFormat::getCellCountVertical() const
+glm::ivec2 RenderFormat::getCellCount() const
 {
-	return _window_size.x / (_cell_size.x + _cell_offset.x);
-}
-
-int RenderFormat::getCellCountHorizontal() const
-{
-	return _window_size.y / (_cell_size.y + _cell_offset.y);
+	return _cell_count;
 }
 
 } // namespace Thr
