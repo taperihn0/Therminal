@@ -104,7 +104,7 @@ Application::Application(int argc, char* argv[])
 	, _window(std::make_unique<Window>())
 	, _monitor_width(-1)
 	, _monitor_height(-1)
-	, _grid(std::make_shared<Grid>())
+	, _grid(std::make_shared<ScrollbackBuffer>())
 	, _render_fmt(
 			RenderFormat::DeafultPaddingPixX,
 			RenderFormat::DeafultPaddingPixY, 

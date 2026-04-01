@@ -4,7 +4,7 @@
 #include "Atlas.hpp"
 #include "screen/Line.hpp"
 #include "RenderFormat.hpp"
-#include "screen/Grid.hpp"
+#include "screen/Scrollback.hpp"
 #include "Atlas.hpp"
 
 namespace Thr

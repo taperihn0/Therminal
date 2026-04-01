@@ -47,6 +47,7 @@ add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glfw)
 add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glad)
 add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/freetype)
 add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/glm)
+add_subdirectory(${CMAKE_PROJECT_NAME}/vendor/uni-algo)
 
 target_link_libraries(Therminal PUBLIC 
 	glfw	
@@ -69,6 +70,7 @@ target_include_directories(Therminal PUBLIC
 	"${CMAKE_PROJECT_NAME}/src"
 	"${CMAKE_PROJECT_NAME}/vendor/glfw/include"
 	"${CMAKE_PROJECT_NAME}/vendor/freetype/include"
+	"${CMAKE_PROJECT_NAME}/vendor/uni-algo/include"
 )
 
 # Platform detection

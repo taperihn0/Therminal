@@ -222,51 +222,37 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 	for (const auto& ln : packet.ln_ptrs->getVec()) {
 		THR_ASSERT(ln != nullptr);
 
-		const Vec<Cell>& cells = ln->getVec();
+		for (auto it = ln->cbegin(); it != ln->getRightmostWriteIterator(); it++) {
+			if (!it->cluster.isEmpty()) {
+				for (char32_t codepoint : it->cluster.codepoints) {
+					GlyphInfo info;
+					uint32_t id = _atlas->getGlyphInfo(codepoint, info);
 
-		for (const auto& cell : cells) {
-			const auto codepoint = cell.ch;
+					if (id == static_cast<uint32_t>(-1)) {
+						glBindVertexArray(*_vao_id_ptr);
+						_atlas->addGlyph(codepoint);
+						glBindVertexArray(0);
+						
+						id = _atlas->getGlyphInfo(codepoint, info);
+					}
 
-			bool add_character = true;
+					THR_ASSERT(info.id == id);
+					THR_ASSERT(info.advance == static_cast<int>(cell_size.x));
 
-			switch (codepoint) {
-			case U'\r':
-				xpos = 0;
-				add_character = false;
-				break;
+					buffer.push_back(ShaderCellInfo{
+						glm::u32vec2{ xpos, ypos },
+						id,
+						it->fg,
+						it->bg
+					});
+				}
 			}
-			
-			if (!add_character)
-				continue;
-
-			GlyphInfo info;
-			uint32_t id = _atlas->getGlyphInfo(codepoint, info);
-
-			if (id == static_cast<uint32_t>(-1)) {
-				glBindVertexArray(*_vao_id_ptr);
-				_atlas->addGlyph(codepoint);
-				glBindVertexArray(0);
-				
-				id = _atlas->getGlyphInfo(codepoint, info);
-			}
-
-			THR_ASSERT(info.id == id);
-			THR_ASSERT(info.advance == static_cast<int>(cell_size.x));
-
-			buffer.push_back(ShaderCellInfo{
-				glm::u32vec2{ xpos, ypos },
-				id,
-				cell.fg,
-				cell.bg
-			});
 
 			xpos += total_shift.x;
 		}
 
 		ypos += total_shift.y;
 		xpos = 0;
-
-		THR_LOG_DEBUG("{} {}", _fmt.getWindowSize().y, ypos);
 	}
 
 	THR_ASSERT(!buffer.empty());

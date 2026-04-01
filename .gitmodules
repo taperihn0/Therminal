@@ -7,3 +7,6 @@
 [submodule "Therminal/vendor/glm"]
 	path = Therminal/vendor/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "Therminal/vendor/uni-algo"]
+	path = Therminal/vendor/uni-algo
+	url = https://github.com/uni-algo/uni-algo.git

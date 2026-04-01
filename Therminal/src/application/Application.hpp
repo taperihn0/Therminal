@@ -8,7 +8,7 @@
 #include "io/OutputBuffer.hpp"
 #include "io/InputTranslator.hpp"
 #include "io/Worker.hpp"
-#include "screen/Grid.hpp"
+#include "screen/Scrollback.hpp"
 #include "io/OutputParser.hpp"
 #include "gl/TextRender.hpp"
 #include "gl/RenderFormat.hpp"
@@ -49,7 +49,7 @@ private:
 	std::unique_ptr<Window>    _window;
 	int                        _monitor_width;
 	int                        _monitor_height;
-	std::shared_ptr<Grid>      _grid;
+	std::shared_ptr<ScrollbackBuffer>      _grid;
 	OutputParser			   _parser;
 	RenderFormat 			   _render_fmt;
 	TextRender				   _text_render;

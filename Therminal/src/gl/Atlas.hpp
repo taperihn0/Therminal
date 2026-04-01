@@ -2,7 +2,7 @@
 
 #include "Common.hpp"
 #include "memory/Memory.hpp"
-#include "Font.hpp"
+#include "font/Font.hpp"
 #include <unordered_map>
 
 namespace Thr

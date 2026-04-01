@@ -4,7 +4,6 @@
 #include "io/InputTranslator.hpp"
 #include "io/InputBuffer.hpp"
 #include "io/OutputBuffer.hpp"
-#include "io/OutputTranslator.hpp"
 
 namespace Thr
 {

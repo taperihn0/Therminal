@@ -2,7 +2,6 @@
 
 #include "Line.hpp"
 #include "memory/CircBuff.hpp"
-#include "io/OutputTranslator.hpp"
 #include "gl/RenderFormat.hpp"
 
 namespace Thr
@@ -22,30 +21,33 @@ private:
 	Vec<Ptr<const Line>> _v;
 };
 
-class Grid
+class ScrollbackBuffer
 {
 public:
-	Grid();
+	ScrollbackBuffer();
 
 	void specifyRenderFormat(const RenderFormat& format);
-	void putChar(char32_t c, const EscapeState* state);
+	void putGraphemeCluster(const GraphemeCluster& cluster, const EscapeState* state);
 
 	std::shared_ptr<const LinePtrBuf> getVisibleLines() const;
 private:
 	size_t advanceWriteIdx();
 	size_t decreaseWriteIdx();
-	void processCarriageReturn();
+	
+	template <int Shift>
+	void shiftWriteIdx();
 
-	static constexpr size_t     _BufSize = 0x10000;
+	Line& getActiveLine();
+
+	static constexpr size_t     _BufSize = 65536;
 	size_t                		_ln_width;
-	OutputStreamTransl          _utf8_utf32;
 	size_t 						_start_ln_pos;
-	size_t                      _write_pos;
+	glm::u64vec2                _write_pos;
 	Arr<Line, _BufSize>         _ln_buf;
 	RenderFormat                _render_fmt;
 	bool                        _formated;
 	std::shared_ptr<LinePtrBuf> _ln_ptrs;
-	size_t   					_last_nl_pos;
+	size_t   					_after_nl_pos;
 };
 
 } // namespace Thr
