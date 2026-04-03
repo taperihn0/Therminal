@@ -12,6 +12,7 @@ struct GraphemeCluster
 	bool isPrintable() const;
 	int getColumnWidth() const;
 	bool isEmpty() const;
+	bool isCRLF() const;
 
 	std::basic_string<char32_t> codepoints;
 };

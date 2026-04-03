@@ -10,7 +10,12 @@ namespace Thr
 class LineView
 {
 public:
-	LineView();
+	LineView(size_t size);
+	LineView(const Line&) = delete;
+	LineView(LineView&& l) = default;
+
+	LineView& operator=(const Line&) = delete;
+	LineView& operator=(LineView&& l) = default;
 
 	using const_iterator = Vec<Ptr<const Line>>::const_iterator;
 
@@ -24,7 +29,6 @@ public:
 	void reserve(size_t ns);
 	void reverse();
 private:
-	static constexpr size_t _DefaultBufSize = 512;
 	Vec<Ptr<const Line>> _v;
 };
 

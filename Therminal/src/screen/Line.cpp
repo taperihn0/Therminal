@@ -30,6 +30,13 @@ bool GraphemeCluster::isEmpty() const
 	return codepoints.empty();
 }
 
+bool GraphemeCluster::isCRLF() const
+{
+	return codepoints.size() == 2 &&
+		   (codepoints == U"\r\n" ||
+			codepoints == U"\n\r");
+}
+
 Line::Line(const Line& l)
 	: _buf_size(l._buf_size)
 	, _ln(l._ln)

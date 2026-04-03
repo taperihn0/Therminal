@@ -25,15 +25,16 @@ public:
 	void clearScrollbackBuffer();
 
 	glm::u64vec2 getCursorPos() const;
-	void putGraphemeCluster(const GraphemeCluster& cluster, const EscapeState* state);
-
 	std::shared_ptr<const LineView> getLineView() const;
+	
+	void putGraphemeCluster(const GraphemeCluster& cluster, const EscapeState* state);
 private:
 	void init();
 	Line& getActiveLine();
+	void safeAdvanceWritePosY();
 
 	CircularBuff<Line> 				  _ln_buf;
-	glm::u64vec2 	   				  _write_pos;
+	glm::u32vec2 	   				  _write_pos;
 	std::shared_ptr<LineView> 		  _ln_ptrs;
 	size_t 							  _after_nl_pos;
 	glm::u32vec2 				 	  _cell_cnt;

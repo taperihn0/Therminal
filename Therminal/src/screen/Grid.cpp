@@ -6,7 +6,7 @@ namespace Thr
 Grid::Grid(const RenderFormat& format)
 	: _ln_buf(format.getCellCount().y)
 	, _write_pos{0, 0}
-	, _ln_ptrs(std::make_shared<LineView>())
+	, _ln_ptrs(nullptr)
 	, _after_nl_pos(0)
 	, _cell_cnt{format.getCellCount()}
 	, _fmt(format)
@@ -93,18 +93,11 @@ void Grid::putGraphemeCluster(const GraphemeCluster& cluster, const EscapeState*
 	for (char32_t codepoint : cluster.codepoints) {
 		switch (codepoint) {
 		case U'\n': {
-			const uint new_write_y = _write_pos.y + 1;
-
-			if (new_write_y == _cell_cnt.y) {
-				Line nln = _ln_buf.get();
-				nln.fill(Cell{});
-				_ln_buf.put(nln);
-			}
-			else _write_pos.y = new_write_y;
+			safeAdvanceWritePosY();
 
 			Line& income_ln = getActiveLine();
-
 			income_ln.setCursorPos(_write_pos.x);
+
 			_after_nl_pos = _write_pos.y;
 			break;
 		}
@@ -116,25 +109,24 @@ void Grid::putGraphemeCluster(const GraphemeCluster& cluster, const EscapeState*
 
 			const size_t new_write_x = income_ln.getCursorPos();
 			_write_pos.x = new_write_x;
+
 			break;
 		}
 		case U'\b': {
-			if (!_write_pos.x && _write_pos.y > 0) {
-				_write_pos.y--;
+			uint new_write_x = 0;
 
-				const size_t new_write_x = _cell_cnt.x - 1;
-				_write_pos.x = new_write_x;
-
-				Line& income_ln = getActiveLine();
-				income_ln.setCursorPos(_write_pos.x);
+			if (!_write_pos.x) {
+				_write_pos.y = std::max(0, static_cast<int>(_write_pos.y) - 1);
+				new_write_x = _cell_cnt.x - 1;
 			}
 			else {
-				const size_t new_write_x = std::max(0, static_cast<int>(_write_pos.x) - 1);
-				_write_pos.x = new_write_x;
-
-				Line& curr_ln = getActiveLine();
-				curr_ln.setCursorPos(_write_pos.x);
+				new_write_x = std::max(0, static_cast<int>(_write_pos.x) - 1);
 			}
+
+			_write_pos.x = new_write_x;
+
+			Line& curr_ln = getActiveLine();
+			curr_ln.setCursorPos(_write_pos.x);
 
 			break;
 		}
@@ -144,37 +136,15 @@ void Grid::putGraphemeCluster(const GraphemeCluster& cluster, const EscapeState*
 		}
 	}
 
-	bool save_cluster = true;
-
-	// Do not save CRLF sequence. It is given as single cluster with '\r\n'.
-	// (May be also '\n\r', be aware of that).
-	if (cluster.codepoints == U"\r\n" ||
-		cluster.codepoints == U"\n\r")
-		save_cluster = false;
-
-	else if (cluster.codepoints == U"\n" ||
-			 cluster.codepoints == U"\r" ||
-			 cluster.codepoints == U"\b")
-		save_cluster = false;
-
-	if (!save_cluster)
+	if (!cluster.isPrintable())
 		return;
 
 	if (_write_pos.x + cluster.isPrintable() * cluster.getColumnWidth() > _cell_cnt.x) {
-		const uint new_write_y = _write_pos.y + 1;
-
-		if (new_write_y == _cell_cnt.y) {
-			Line nln = _ln_buf.get();
-			nln.fill(Cell{});
-			_ln_buf.put(nln);
-		}
-		else _write_pos.y = new_write_y;
+		safeAdvanceWritePosY();
 
 		_write_pos.x = 0;
+		getActiveLine().setCursorPos(_write_pos.x);
 		_after_nl_pos = _write_pos.y;
-
-		Line& curr_ln = getActiveLine();
-		curr_ln.setCursorPos(_write_pos.x);
 	}
 
 	Line& curr_ln = getActiveLine();
@@ -187,6 +157,18 @@ Line& Grid::getActiveLine()
 	return _ln_buf.getIthElement(_write_pos.y);
 }
 
+void Grid::safeAdvanceWritePosY()
+{
+	const uint new_write_y = _write_pos.y + 1;
+
+	if (new_write_y == _cell_cnt.y) {
+		Line nln = _ln_buf.get();
+		nln.fill(Cell{});
+		_ln_buf.put(nln);
+	}
+	else _write_pos.y = new_write_y;
+}
+
 void Grid::init()
 {
 	for (size_t i = 0; i < _cell_cnt.y; i++) {
@@ -194,6 +176,8 @@ void Grid::init()
 		ln.resize(_cell_cnt.x);
 		_ln_buf.put(ln);
 	}
+
+	_ln_ptrs = std::make_shared<LineView>(_cell_cnt.y);
 }
 
 std::shared_ptr<const LineView> Grid::getLineView() const

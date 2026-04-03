@@ -5,9 +5,9 @@
 namespace Thr
 {
 
-LineView::LineView()
+LineView::LineView(size_t size)
 {
-	_v.reserve(_DefaultBufSize);
+	_v.reserve(size);
 }
 
 LineView::const_iterator LineView::begin() const
