@@ -219,9 +219,7 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 	uint xpos = 0;
 	uint ypos = 0;
 
-	for (const auto& ln : packet.ln_ptrs->getVec()) {
-		THR_ASSERT(ln != nullptr);
-
+	for (const auto& ln : *packet.ln_ptrs) {
 		for (auto it = ln->cbegin(); it != ln->getRightmostWriteIterator(); it++) {
 			if (!it->cluster.isEmpty()) {
 				for (char32_t codepoint : it->cluster.codepoints) {

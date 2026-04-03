@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common.hpp"
+#include "Misc.hpp"
 #include <sstream>
 
 namespace Thr

@@ -6,7 +6,7 @@
 #include "gl/Utils.hpp"
 #include <atomic>
 
-//#define LOG_KEY_EV
+#define LOG_KEY_EV
 
 namespace Thr 
 {
@@ -104,7 +104,8 @@ Application::Application(int argc, char* argv[])
 	, _window(std::make_unique<Window>())
 	, _monitor_width(-1)
 	, _monitor_height(-1)
-	, _grid(std::make_shared<ScrollbackBuffer>())
+	, _scrollback(std::make_shared<ScrollbackBuffer>())
+	, _grid(nullptr)
 	, _render_fmt(
 			RenderFormat::DeafultPaddingPixX,
 			RenderFormat::DeafultPaddingPixY, 
@@ -133,14 +134,14 @@ void Application::run()
 	while (_window->isOpen() && _shell.running()) {
 		_text_render.clearScreen(Color4f{ 0.1f, 0.1f, 0.1f, 1.f });
 
-		BytesBuf buf = { nullptr, 0 };
+		BytesBuf buf { nullptr, 0 };
 		_client.readBytes(buf);
 
 		if (buf.n > 0) {
 			_parser.parseToGrid(buf.ptr, buf.n);
 
 			const RenderFramePacket packet = {
-				_grid->getVisibleLines()
+				_grid->getLineView()
 			};
 
 			_text_render.submitCurrFrame(packet);
@@ -194,6 +195,11 @@ void Application::init()
 	_window->setMouseMoveCallback(winMouseMoveCallback);
 	_window->setMouseScrollCallback(winMouseScrollCallback);
 
+	/* Setup grid and scrollback buffer */
+	_scrollback->specifyRenderFormat(_render_fmt);
+	_grid = std::make_shared<Grid>(_render_fmt);
+	_grid->specifyScrollbackBuffer(_scrollback);
+
 	/* Specify input parser from shell proc */
 	_parser.writeTo(_grid);
 
@@ -204,8 +210,6 @@ void Application::init()
 
 	/* Get true text render format. */
 	_text_render.getRenderFormat(_render_fmt);
-	
-	_grid->specifyRenderFormat(_render_fmt);
 
 	/* Create shell stream workflow */
 	_client.bindBridge(_io_bridge);

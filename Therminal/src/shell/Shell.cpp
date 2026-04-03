@@ -109,8 +109,8 @@ void Shell::createFork()
 		THR_LOG_ERROR("Failed to generate interactive termios");
 	}
 
-	slave_winsize.ws_col = _render_fmt.getCellCount().y;
-	slave_winsize.ws_row = _render_fmt.getCellCount().x;
+	slave_winsize.ws_col = _render_fmt.getCellCount().x;
+	slave_winsize.ws_row = _render_fmt.getCellCount().y;
 
 	pid = pty_fork(std::addressof(_fdm), slave_name, sizeof(slave_name),
 				   std::addressof(slave_termios), std::addressof(slave_winsize));
@@ -122,9 +122,9 @@ void Shell::createFork()
 		if (sigprocmask(SIG_SETMASK, std::addressof(prev_sigset), nullptr) < 0)
 			THR_LOG_ERROR("Failed to 'sigprocmask'"); // might not display properly
 
-		char shell[] = "sh";
+		char shell[] = "zsh";
 
-		if (execlp(shell, "-sh", "-l", nullptr) < 0) {
+		if (execlp(shell, "-zsh", "-i", "-d", nullptr) < 0) {
 			THR_LOG_FATAL_FRAME_INFO("Can't execute: {}", shell);
 			
 			if (kill(getppid(), SIGTERM) < 0) {

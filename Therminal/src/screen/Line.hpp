@@ -30,18 +30,26 @@ struct EscapeState;
 class Line
 {
 public:
+	using iterator = Vec<Cell>::iterator;
+	using const_iterator = Vec<Cell>::const_iterator;
+
 	Line() = default;
-	
-	using iterator = std::vector<Cell>::iterator;
-	using const_iterator = std::vector<Cell>::const_iterator;
+	Line(const Line& l);
+	Line(Line&& l);
+
+	friend void swap(Line& l0, Line& l1);
+
+	Line& operator=(const Line& l);
+	Line& operator=(Line&& l);
 	
 	const_iterator cbegin() const;
-	const_iterator cend()  const;
+	const_iterator cend() const;
 	const_iterator begin() const;
 	const_iterator end() const;
 
 	void clear();
 	void resize(size_t buf_size);
+	void fill(const Cell& c);
 
 	size_t getBufSize() const;
 	const Vec<Cell> getVec() const;
@@ -52,7 +60,7 @@ public:
 	void setCursorPos(size_t pos);
 	void onCarriageReturn();
 private:
-	static constexpr size_t _BufSizeLimit = 0x800;
+	static constexpr size_t _BufSizeLimit = 2048;
 	size_t                  _buf_size = 0;
 	Vec<Cell>               _ln;
 	iterator                _write_it;

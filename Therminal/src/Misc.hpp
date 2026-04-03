@@ -2,7 +2,7 @@
 
 #include "Assert.hpp"
 #include "Types.hpp"
-#include "Headers.hpp"
+#include "Common.hpp"
 
 namespace Thr 
 {
@@ -45,5 +45,8 @@ THR_FORCEINLINE constexpr T sq(T x)
 {
    return x * x;
 }
+
+template <typename Return, typename... Args>
+Return doNothing(Args&&...) {};
 
 } // namespace Thr

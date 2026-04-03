@@ -2,6 +2,7 @@
 
 #include "Simd.hpp"
 #include "logger/Log.hpp"
+#include "Misc.hpp"
 #include <memory>
 #include <cstring>
 

@@ -30,6 +30,45 @@ bool GraphemeCluster::isEmpty() const
 	return codepoints.empty();
 }
 
+Line::Line(const Line& l)
+	: _buf_size(l._buf_size)
+	, _ln(l._ln)
+{
+	const auto write_dist = std::distance(l._ln.cbegin(), Vec<Cell>::const_iterator(l._write_it));
+	const auto rightmost_dist = std::distance(l._ln.cbegin(), Vec<Cell>::const_iterator(l._write_it));
+
+	_write_it = std::next(_ln.begin(), write_dist);
+	_rightmost_write_it = std::next(_ln.begin(), rightmost_dist);
+}
+
+Line::Line(Line&& l)
+	: _buf_size(l._buf_size)
+	, _ln(std::move(l._ln))
+	, _write_it(l._write_it)
+	, _rightmost_write_it(l._rightmost_write_it)
+{}
+
+void swap(Line& l0, Line& l1)
+{
+	std::swap(l0._buf_size, l1._buf_size);
+	std::swap(l0._ln, l1._ln);
+	std::swap(l0._write_it, l1._write_it);
+	std::swap(l0._rightmost_write_it, l1._rightmost_write_it);
+}
+
+Line& Line::operator=(const Line& l)
+{
+	Line tmp = l;
+	swap(*this, tmp);
+	return *this;
+}
+
+Line& Line::operator=(Line&& l)
+{
+	swap(*this, l);
+	return *this;
+}
+
 size_t Line::getBufSize() const
 {
 	return _buf_size;
@@ -47,12 +86,12 @@ Line::const_iterator Line::cend() const
 
 Line::const_iterator Line::begin() const
 {
-	return _ln.begin();
+	return _ln.cbegin();
 }
 
 Line::const_iterator Line::end() const
 {
-	return _ln.end();
+	return _ln.cend();
 }
 
 void Line::clear()
@@ -73,7 +112,10 @@ void Line::putGraphemeCluster(const GraphemeCluster& cluster, const EscapeState*
 	const Cell cell = { cluster, {}, {} };
 
 	*_write_it = std::move(cell);
-	_rightmost_write_it = _write_it;
+	
+	if (std::distance(_ln.begin(), _write_it) >= std::distance(_ln.cbegin(), _rightmost_write_it))
+		_rightmost_write_it = _write_it;
+
 	++_write_it;
 }
 
@@ -89,15 +131,7 @@ void Line::onCarriageReturn()
 		return;
 	}
 
-	const auto r_it = std::find_if(_ln.rbegin(), _ln.rend(), 
-		[](const Cell& cell) {
-			return std::any_of(cell.cluster.codepoints.cbegin(), cell.cluster.codepoints.cend(), 
-				[](char32_t ch) {
-					return ch == U'\n';
-				});
-		});
-
-	_write_it = r_it != _ln.rend() ? r_it.base() : _ln.begin();
+	_write_it = _ln.begin();
 }
 
 size_t Line::getCursorPos() const
@@ -129,7 +163,7 @@ void Line::setCursorPos(size_t pos)
 		else 
 			column += it->cluster.isPrintable() * it->cluster.getColumnWidth();
 		
-		if (column >= pos) {
+		if (column > pos) {
 			_write_it = it;
 			break;
 		}
@@ -143,6 +177,11 @@ void Line::resize(size_t buf_size)
 	_ln.resize(_buf_size);
 	_write_it = _ln.begin();
 	_rightmost_write_it = _write_it;
+}
+
+void Line::fill(const Cell& c)
+{
+	std::fill(_ln.begin(), _ln.end(), c);
 }
 
 } // namespace Thr

@@ -165,7 +165,7 @@ pid_t pty_fork(int* ptrfdm, char* slave_name, int slave_namesz,
          if (ioctl(fds, TIOCSWINSZ, slave_winsize) < 0)
             fprintf(stderr, "TIOCSWINSZ error on slave pty");
       }
- 
+
       /*
       * Slave becomes stdin/stdout/stderr of child.
       */

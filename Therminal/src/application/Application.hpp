@@ -14,6 +14,7 @@
 #include "gl/RenderFormat.hpp"
 #include "gl/Atlas.hpp"
 #include "shell/Shell.hpp"
+#include "screen/Grid.hpp"
 
 namespace Thr 
 {
@@ -49,7 +50,8 @@ private:
 	std::unique_ptr<Window>    _window;
 	int                        _monitor_width;
 	int                        _monitor_height;
-	std::shared_ptr<ScrollbackBuffer>      _grid;
+	std::shared_ptr<ScrollbackBuffer> _scrollback;
+	std::shared_ptr<Grid> 	   _grid;
 	OutputParser			   _parser;
 	RenderFormat 			   _render_fmt;
 	TextRender				   _text_render;
