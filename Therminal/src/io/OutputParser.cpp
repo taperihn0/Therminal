@@ -35,15 +35,36 @@ void OutputParser::parseToGrid(const byte* stream, size_t n)
 THR_FORCEINLINE OutputParser::enumParseState OutputParser::stateFromControlChar(char32_t c)
 {
 	switch (c) {
+	case U'N':  return enumParseState::SINGLE_SHIFT_2;
+	case U'0':  return enumParseState::SINGLE_SHIFT_3;
+	case U'P':	return enumParseState::DEVICE_CONTROL_STRING;
 	case U'[':  return enumParseState::CONTROL_SEQUENCE_INTRODUCER;
 	case U'\\': return enumParseState::STRING_TERMINATOR;
 	case U']':  return enumParseState::OS_COMMAND;
 	case U'X':  return enumParseState::START_OF_STRING;
 	case U'^':  return enumParseState::PRIVACY_MSG;
 	case U'_':  return enumParseState::APP_COMMAND;
-	case U'=':  return enumParseState::RAW; // DECKPAM
-	case U'>':  return enumParseState::RAW; // DECKPNM
+	case U'=':  return enumParseState::DECKPAM;
+	case U'>':  return enumParseState::DECKPNM;
 	default:	break;
+	}
+
+	return enumParseState::INVALID;
+}
+
+THR_FORCEINLINE OutputParser::enumParseState OutputParser::stateFromC1Char(char32_t c)
+{
+	switch (c) {
+	case U'\x8E': return enumParseState::SINGLE_SHIFT_2;
+	case U'\x8F': return enumParseState::SINGLE_SHIFT_3;
+	case U'\x90': return enumParseState::DEVICE_CONTROL_STRING;
+	case U'\x9B': return enumParseState::CONTROL_SEQUENCE_INTRODUCER;
+	case U'\x9C': return enumParseState::STRING_TERMINATOR;
+	case U'\x9D': return enumParseState::OS_COMMAND;
+	case U'\x98': return enumParseState::START_OF_STRING;
+	case U'\x9E': return enumParseState::PRIVACY_MSG;
+	case U'\x9F': return enumParseState::APP_COMMAND;
+	default:	  break;
 	}
 
 	return enumParseState::INVALID;
@@ -60,75 +81,122 @@ void OutputParser::processGraphemeCluster(GraphemeCluster& cluster)
 	
 	const char32_t fch = cluster.codepoints[0];
 
-	switch (_parse_state) {
-	case enumParseState::RAW: {
-		if (codepoint_cnt == 1 && fch == U'\x1b') {
-			_parse_state = enumParseState::ESCAPE;
+	bool handle;
+
+	while (!handle) {
+		handle = true;
+
+		switch (_parse_state) {
+		case enumParseState::RAW: {
+			if (codepoint_cnt == 1 && fch == U'\x1b') {
+				_parse_state = enumParseState::ESCAPE;
+				break;
+			}
+			else if (codepoint_cnt == 1 &&
+					Char32(fch).isControl0()) {
+				// TODO: handle c0 codes here
+			}
+			else if (codepoint_cnt == 1 &&
+					Char32(fch).isControl1()) {
+				_parse_state = stateFromC1Char(fch);
+				break;
+			}
+
+			_grid->putGraphemeCluster(std::move(cluster), std::addressof(_control_state));
 			break;
 		}
+		case enumParseState::ESCAPE: {
+			if (codepoint_cnt != 1) {
+				THR_LOG_DEBUG("Invalid codepoint in ESCAPE state");
+				_parse_state = enumParseState::RAW;
+			}
+			else {
+				_control_buf.clear();
+				_parse_state = stateFromControlChar(fch);
+			}
 
-		_grid->putGraphemeCluster(std::move(cluster), std::addressof(_control_state));
-		break;
-	}
-	case enumParseState::ESCAPE: {
-		if (codepoint_cnt != 1) {
-			THR_LOG_DEBUG("Invalid codepoint in ESCAPE state");
+			break;
+		}
+		case enumParseState::SINGLE_SHIFT_2: {
 			_parse_state = enumParseState::RAW;
+			handle = true;
+			break;
 		}
-		else {
-			_control_buf.clear();
-			_parse_state = stateFromControlChar(fch);
+		case enumParseState::SINGLE_SHIFT_3: {
+			_parse_state = enumParseState::RAW;
+			handle = true;
+			break;
 		}
+		case enumParseState::DEVICE_CONTROL_STRING: {
+			_parse_state = enumParseState::RAW;
+			handle = true;
+			break;
+		}
+		case enumParseState::CONTROL_SEQUENCE_INTRODUCER: {
+			if (codepoint_cnt > 1) {
+				THR_LOG_DEBUG("Invalid CSI command, back to RAW state");
+				_parse_state = enumParseState::RAW;
+				break;
+			}
+			else if (fch >= U'\x40' && fch <= U'\x7e') {
+				processCSICommand(fch);
+				_parse_state = enumParseState::RAW;
+				break;
+			} 
 
-		break;
-	}
-	case enumParseState::DEVICE_CONTROL_STRING:
-		break;
-	case enumParseState::CONTROL_SEQUENCE_INTRODUCER: {
-		if (codepoint_cnt > 1) {
-			THR_LOG_DEBUG("Invalid CSI command, back to RAW state");
+			_control_buf += fch;
+			break;
+		}
+		case enumParseState::STRING_TERMINATOR: {
 			_parse_state = enumParseState::RAW;
 			break;
 		}
-		else if (fch >= U'\x40' && fch <= U'\x7e') {
-			processCSICommand(fch);
-			_parse_state = enumParseState::RAW;
-			break;
-		} 
+		case enumParseState::OS_COMMAND: {
+			if (codepoint_cnt > 1) {
+				THR_LOG_DEBUG("Invalid OS command, back to RAW state");
+				_parse_state = enumParseState::RAW;
+				break;
+			}
+			else if (fch == U'\x07' || fch == U'\x9c' ||
+					(fch == U'\x5c' && _control_buf.back() == U'\x1b') /* ST */) {
+				processOSCommand();
+				_parse_state = fch == U'\x5c' ? enumParseState::STRING_TERMINATOR 
+											: enumParseState::RAW;
 
-		_control_buf += fch;
-		break;
-	}
-	case enumParseState::STRING_TERMINATOR: {
-		THR_LOG_INFO("JLJFLSJF");
-		break;
-	} case enumParseState::OS_COMMAND: {
-		if (codepoint_cnt > 1) {
-			THR_LOG_DEBUG("Invalid OS command, back to RAW state");
-			_parse_state = enumParseState::RAW;
+				break;
+			}
+
+			_control_buf += fch;
 			break;
 		}
-		else if (fch == U'\x07' || fch == U'\x9c' ||
-				 (fch == U'\x5c' && _control_buf.back() == U'\x1b')) {
-
-			if (fch == U'\x1b')
-				_control_buf.pop_back();
-
-			processOSCommand();
+		case enumParseState::START_OF_STRING: {
 			_parse_state = enumParseState::RAW;
+			handle = true;
+			break;
 		}
-
-		_control_buf += fch;
-		break;
-	}
-	case enumParseState::START_OF_STRING:
-		break;
-	case enumParseState::PRIVACY_MSG: 
-		break;
-	case enumParseState::APP_COMMAND: 
-		break;
-	default:
-		break;
+		case enumParseState::PRIVACY_MSG: {
+			_parse_state = enumParseState::RAW;
+			handle = true;
+			break;
+		}
+		case enumParseState::APP_COMMAND: {
+			_parse_state = enumParseState::RAW;
+			handle = true;
+			break;
+		}
+		case enumParseState::DECKPAM: {
+			_parse_state = enumParseState::RAW;
+			handle = false;
+			break;
+		}
+		case enumParseState::DECKPNM: {
+			_parse_state = enumParseState::RAW;
+			handle = false;
+			break;
+		}
+		default:
+			break;
+		}
 	}
 }
 

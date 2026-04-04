@@ -17,14 +17,16 @@ struct Char
 
 	THR_INLINE int getWidth() const;
 	THR_INLINE bool isPrintable() const;
+	THR_INLINE bool isControl0() const;
+	THR_INLINE bool isControl1() const;
 
 	THR_INLINE Char<T>& operator=(Char<T> c);
-	THR_INLINE Char<T>  operator==(Char<T> c) const;
-	THR_INLINE Char<T>  operator!=(Char<T> c) const;
-	THR_INLINE Char<T>  operator>(Char<T> c) const;
-	THR_INLINE Char<T>  operator>=(Char<T> c) const;
-	THR_INLINE Char<T>  operator<(Char<T> c) const;
-	THR_INLINE Char<T>  operator<=(Char<T> c) const;
+	THR_INLINE bool     operator==(Char<T> c) const;
+	THR_INLINE bool     operator!=(Char<T> c) const;
+	THR_INLINE bool     operator>(Char<T> c) const;
+	THR_INLINE bool     operator>=(Char<T> c) const;
+	THR_INLINE bool     operator<(Char<T> c) const;
+	THR_INLINE bool     operator<=(Char<T> c) const;
 
 	THR_INLINE operator T() const;
 

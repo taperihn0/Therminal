@@ -28,17 +28,22 @@ private:
 	{
 		RAW = 0,
 		ESCAPE = 1,
-		DEVICE_CONTROL_STRING = 2,
-		CONTROL_SEQUENCE_INTRODUCER = 3,
-		STRING_TERMINATOR = 4,
-		OS_COMMAND = 5,
-		START_OF_STRING = 6,
-		PRIVACY_MSG = 7,
-		APP_COMMAND = 8,
+		SINGLE_SHIFT_2 = 2,
+		SINGLE_SHIFT_3 = 3,
+		DEVICE_CONTROL_STRING = 4,
+		CONTROL_SEQUENCE_INTRODUCER = 5,
+		STRING_TERMINATOR = 6,
+		OS_COMMAND = 7,
+		START_OF_STRING = 8,
+		PRIVACY_MSG = 9,
+		APP_COMMAND = 10,
+		DECKPAM = 11,
+		DECKPNM = 12,
 		INVALID
 	};
 	
 	enumParseState stateFromControlChar(char32_t c);
+	enumParseState stateFromC1Char(char32_t c);
 
 	std::shared_ptr<Grid> 		_grid;
 	EscapeState                 _control_state;
