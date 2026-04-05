@@ -56,8 +56,9 @@ private:
 	RenderFormat 			   _render_fmt;
 	TextRender				   _text_render;
 	Shell 				       _shell;
-	std::shared_ptr<Font> 	   _font;
-	std::shared_ptr<FontAtlas> _atlas;
+	std::shared_ptr<Font> 	   _regular_font;
+	std::shared_ptr<Font> 	   _colored_font;
+	std::shared_ptr<DoubleAtlas> _datlas;
 	std::shared_ptr<IOBridge>  _io_bridge;
 	static IOAppClient		   _client;
 

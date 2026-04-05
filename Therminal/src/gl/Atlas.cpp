@@ -2,6 +2,7 @@
 #include "logger/Log.hpp"
 #include "memory/Memory.hpp"
 #include "Utils.hpp"
+#include "char/Char.hpp"
 
 namespace Thr
 {
@@ -45,8 +46,8 @@ THR_FORCEINLINE GlyphFormatData::GlyphFormatData(int width,
 {}
 
 FontAtlas::FontAtlas()
-	: FontAtlas(DefaultAtlasWidth, 
-				DefaultAtlasHeight)
+	: FontAtlas(_DefaultAtlasWidth, 
+				_DefaultAtlasHeight)
 {}
 
 FontAtlas::FontAtlas(uint atlas_width, 
@@ -63,6 +64,7 @@ FontAtlas::FontAtlas(uint atlas_width,
 	, _atlas_x_offset(0)
 	, _atlas_y_offset(0)
 	, _initialized(false)
+	, _act_tex_ctx(nullptr)
 {}
 
 FontAtlas::~FontAtlas()
@@ -90,6 +92,44 @@ FontAtlas::FontAtlas(FontAtlas&& atlas)
 	atlas._tb_buf_uvs_id = 0;
 	atlas._tb_tex_uvs_id = 0;
 	atlas._glyph_id = 0;
+	atlas._tb_buf_form_id = 0;
+	atlas._tb_tex_form_id = 0;
+}
+
+FontAtlas& FontAtlas::operator=(FontAtlas&& atlas)
+{
+	if (this == std::addressof(atlas))
+		return *this;
+
+	clear();
+
+	_glyph_map = std::move(atlas._glyph_map);
+	_font      = std::move(atlas._font);
+
+	_atlas_tex_id   = atlas._atlas_tex_id;
+	_tb_buf_uvs_id  = atlas._tb_buf_uvs_id;
+	_tb_tex_uvs_id  = atlas._tb_tex_uvs_id;
+	_tb_buf_form_id = atlas._tb_buf_form_id;
+	_tb_tex_form_id = atlas._tb_tex_form_id; 
+	_glyph_id       = atlas._glyph_id;
+	_atlas_width    = atlas._atlas_width;
+	_atlas_height   = atlas._atlas_height;
+	_glyph_per_tb   = atlas._glyph_per_tb;
+	_atlas_x_offset = atlas._atlas_x_offset;
+	_atlas_y_offset = atlas._atlas_y_offset;
+	_initialized    = atlas._initialized;
+
+	atlas._atlas_tex_id   = 0;
+	atlas._tb_buf_uvs_id  = 0;
+	atlas._tb_tex_uvs_id  = 0;
+	atlas._tb_buf_form_id = 0;
+	atlas._tb_tex_form_id = 0;
+	atlas._glyph_id       = 0;
+	atlas._initialized    = false;
+	atlas._atlas_width    = 0;
+	atlas._atlas_height   = 0;
+
+	return *this;
 }
 
 void FontAtlas::addGlyph(char32_t codepoint)
@@ -284,17 +324,17 @@ void FontAtlas::unbindAtlas() const
 
 GLenum FontAtlas::getAtlasTexUnit() const
 {
-	return GL_TEXTURE0;
+	return _atlas_tex_unit;
 }
 
 GLenum FontAtlas::getAtlasTexBufUnit() const
 {
-	return GL_TEXTURE1;
+	return _atlas_lookup_unit;
 }
 
 GLenum FontAtlas::getCharFormatBufUnit() const
 {
-	return GL_TEXTURE2;
+	return _char_lookup_unit;
 }
 
 bool FontAtlas::isReady() const
@@ -302,7 +342,8 @@ bool FontAtlas::isReady() const
 	return _initialized;
 }
 
-void FontAtlas::init(std::shared_ptr<Font>& font)
+void FontAtlas::init(std::shared_ptr<Font>& font,
+					 std::shared_ptr<TexturesUnitsContext>& act_tex_ctx)
 {
 	if (_initialized) {
 		THR_LOG_ERROR("FontAtlas subsystem is already initialized, can't initialize again");
@@ -383,6 +424,15 @@ void FontAtlas::init(std::shared_ptr<Font>& font)
 
 	glBindTexture(GL_TEXTURE_BUFFER, 0);
 
+	_act_tex_ctx = act_tex_ctx;
+
+	if (!_act_tex_ctx->getTextureUnit(_atlas_tex_unit) ||
+		!_act_tex_ctx->getTextureUnit(_atlas_lookup_unit) ||
+		!_act_tex_ctx->getTextureUnit(_char_lookup_unit)) {
+		THR_LOG_FATAL("Failed to setup texture units");
+		return;
+	}
+
 	const GLenum err = pollGlErrors([](GLenum err) {
 		THR_LOG_ERROR("OpenGL error during FontAtlas initialization: {}", getGlErrorStr(err));
 	});
@@ -410,5 +460,85 @@ THR_INLINE void FontAtlas::clear()
 
 	_initialized = false;
 }
+
+/**** Double-atlas implementation ****/
+
+DoubleAtlas::DoubleAtlas(uint atlas_width, uint atlas_height)
+	: _atlas_pair{ FontAtlas(atlas_width, atlas_height), 
+			  	   FontAtlas(atlas_width, atlas_height) }
+{}
+
+void DoubleAtlas::init(std::shared_ptr<Font>& regular_font,
+					   std::shared_ptr<Font>& colored_font)
+{
+	std::shared_ptr<TexturesUnitsContext> act_tex_ctx_ptr = 
+		std::make_shared<TexturesUnitsContext>(_act_tex_ctx);
+
+	std::get<GetRegularAtlas>(_atlas_pair).init(regular_font, act_tex_ctx_ptr);
+	std::get<GetColoredAtlas>(_atlas_pair).init(colored_font, act_tex_ctx_ptr);
+}
+	
+void DoubleAtlas::addGlyph(char32_t codepoint)
+{
+	const Char32 ch(codepoint);
+
+	if (ch.isEmoji())
+		std::get<GetColoredAtlas>(_atlas_pair).addGlyph(ch);
+	else
+		std::get<GetRegularAtlas>(_atlas_pair).addGlyph(ch);
+}
+
+uint32_t DoubleAtlas::getGlyphInfo(char32_t codepoint, GlyphInfo& info) const
+{
+	const Char32 ch(codepoint);
+
+	if (ch.isEmoji())
+		return std::get<GetColoredAtlas>(_atlas_pair).getGlyphInfo(ch, info);
+	else
+		return std::get<GetRegularAtlas>(_atlas_pair).getGlyphInfo(ch, info);
+}
+
+void DoubleAtlas::bindAtlases() const
+{
+	std::get<GetRegularAtlas>(_atlas_pair).bindAtlas();
+	std::get<GetColoredAtlas>(_atlas_pair).bindAtlas();
+}
+
+void DoubleAtlas::unbindAtlases() const
+{
+	std::get<GetRegularAtlas>(_atlas_pair).unbindAtlas();
+	std::get<GetColoredAtlas>(_atlas_pair).unbindAtlas();
+}
+
+template <size_t Atlas>
+GLenum DoubleAtlas::getAtlasTexUnit() const
+{
+	return std::get<Atlas>(_atlas_pair).getAtlasTexUnit();
+}
+
+template <size_t Atlas>
+GLenum DoubleAtlas::getAtlasTexBufUnit() const
+{
+	return std::get<Atlas>(_atlas_pair).getAtlasTexBufUnit();
+}
+
+template <size_t Atlas>
+GLenum DoubleAtlas::getCharFormatBufUnit() const
+{
+	return std::get<Atlas>(_atlas_pair).getCharFormatBufUnit();
+}
+
+bool DoubleAtlas::isReady() const
+{
+	return std::get<GetRegularAtlas>(_atlas_pair).isReady() &&
+		   std::get<GetColoredAtlas>(_atlas_pair).isReady();
+}
+
+template GLenum DoubleAtlas::getAtlasTexUnit<DoubleAtlas::GetRegularAtlas>() const;
+template GLenum DoubleAtlas::getAtlasTexBufUnit<DoubleAtlas::GetRegularAtlas>() const;
+template GLenum DoubleAtlas::getCharFormatBufUnit<DoubleAtlas::GetRegularAtlas>() const;
+template GLenum DoubleAtlas::getAtlasTexUnit<DoubleAtlas::GetColoredAtlas>() const;
+template GLenum DoubleAtlas::getAtlasTexBufUnit<DoubleAtlas::GetColoredAtlas>() const;
+template GLenum DoubleAtlas::getCharFormatBufUnit<DoubleAtlas::GetColoredAtlas>() const;
 
 } // namespace Thr

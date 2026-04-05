@@ -9,7 +9,7 @@ constexpr THR_FORCEINLINE int32_t fracPixelToPixel(FT_Int frac)
 	return frac >> 6;
 }
 
-constexpr THR_FORCEINLINE glm::i32vec2 fracPixelToPixel(FT_Vector v) 
+constexpr THR_FORCEINLINE glm::i32vec2 fracPixel2ToPixel2(FT_Vector v) 
 {
 	return glm::i32vec2{v.x >> 6, v.y >> 6};
 }
@@ -42,7 +42,7 @@ Font& Font::operator=(Font&& f)
     return *this;
 }
 
-void Font::init(const FilePath& font_path, int glyph_height)
+void Font::init(const FilePath& font_path, int req_glyph_height)
 {
     if (_initialized) {
         THR_LOG_ERROR("FreeType font already initialized");
@@ -59,15 +59,13 @@ void Font::init(const FilePath& font_path, int glyph_height)
 		return;
 	}
 
-	const bool mono = (_ft_face->face_flags & FT_FACE_FLAG_FIXED_WIDTH);
-
-	if (!mono) {
+	if (!FT_IS_FIXED_WIDTH(_ft_face)) {
 		THR_LOG_ERROR("Loaded font is not monospaced");
 		return;
 	}
 
-	if (FT_Set_Pixel_Sizes(_ft_face, 0, glyph_height)) {
-		THR_LOG_ERROR("Failed to set pixel size for font face");
+	if (!selectHeight(req_glyph_height)) {
+		THR_LOG_FATAL("Font sizing failed");
 		return;
 	}
 
@@ -94,23 +92,28 @@ float Font::getScale() const
 	return _on_scr_scale;
 }
 
-glm::ivec2 toWraperVector(const FT_Vector& ft_vec) 
-{
-	return glm::ivec2{ ft_vec.x, ft_vec.y };
-}
-
 bool Font::getGlyphOf(char32_t ch, Font::Glyph& glyph)
 {
-	if (_ft_face == nullptr || 
-		FT_Load_Char(_ft_face, ch, FT_LOAD_RENDER)) {
-		THR_LOG_ERROR("Failed to load glyph for '{}'", ch);
+	if (_ft_face == nullptr) {
+		THR_LOG_ERROR("Invalid font face");
 		return false;
 	}
+
+	const uint ft_index = FT_Get_Char_Index(_ft_face, ch);
+
+	if (!ft_index) 
+		return false;
+
+	if (FT_Load_Glyph(_ft_face, ft_index, _ft_load_flags))
+		return false;
+
+	if (FT_Render_Glyph(_ft_face->glyph, _ft_render))
+		return false;
 
     glyph = {
 		_ft_face->glyph->glyph_index,
 		_ft_face->glyph->metrics,
-		fracPixelToPixel(_ft_face->glyph->advance),
+		fracPixel2ToPixel2(_ft_face->glyph->advance),
 		_ft_face->glyph->bitmap,
 		_ft_face->glyph->bitmap_left,
 		_ft_face->glyph->bitmap_top,
@@ -138,6 +141,53 @@ bool Font::getGlyphMetrics(Font::Metrics& metrics) const
 bool Font::isReady() const
 {
     return _initialized;
+}
+
+bool Font::isColoredFont() const
+{
+	static constexpr FT_ULong ColoredBitmapTag = FT_MAKE_TAG('C', 'B', 'D', 'T');
+	FT_ULong len = 0;
+
+	const bool status = FT_Load_Sfnt_Table(_ft_face, ColoredBitmapTag, 
+								  		   0, nullptr, std::addressof(len));
+
+	if (!status) {
+		THR_LOG_FATAL("Failed to load SFNT table for font");
+		return false;
+	}
+
+	return len > 0;
+}
+
+bool Font::selectHeight(int req_glyph_height)
+{
+	if (!isColoredFont()) /* Regular font */ {
+		if (FT_Set_Pixel_Sizes(_ft_face, 0, req_glyph_height)) {
+			THR_LOG_ERROR("Failed to set pixel size for font face");
+			return false;
+		}
+
+		_ft_load_flags |= FT_LOAD_COLOR;
+		return true;
+	}
+
+	/* Colored font*/
+	if (!_ft_face->num_fixed_sizes)
+		return false;
+
+	int pick = 0;
+	int min_diff = std::abs(req_glyph_height - _ft_face->available_sizes[0].height);
+
+	for (int i = 1; i < _ft_face->num_fixed_sizes; i++) {
+		const int diff = std::abs(req_glyph_height - _ft_face->available_sizes[i].height);
+
+		if (diff < min_diff) {
+			min_diff = diff;
+			pick = i;
+		}
+	}
+
+	return FT_Select_Size(_ft_face, pick);
 }
 
 } // namespace Thr

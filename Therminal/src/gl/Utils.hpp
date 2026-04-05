@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common.hpp"
+#include <bitset>
 
 namespace Thr
 {
@@ -32,7 +33,6 @@ THR_NODISCARD THR_FORCEINLINE std::string_view getGlErrorStr(GLenum err)
 
 THR_INLINE GLenum pollGlErrors(std::function<void(GLenum)> policy)
 {
-
 #if defined(THR_DEBUG) || defined(THR_RELEASE_DEBUG_INFO)
 	GLenum err = GL_NO_ERROR;
 
@@ -46,9 +46,60 @@ THR_INLINE GLenum pollGlErrors(std::function<void(GLenum)> policy)
 #endif
 }
 
-THR_FORCEINLINE GLint getGlActiveTexUniformVal(GLenum tex) 
+THR_INLINE int getGlActiveTexIndex(GLenum tex);
+
+struct TexturesUnitsContext
 {
-	THR_ASSERT(tex >= GL_TEXTURE0 && tex <= GL_TEXTURE31);
+	TexturesUnitsContext() = default;
+	TexturesUnitsContext(const TexturesUnitsContext&) = default;
+	TexturesUnitsContext(TexturesUnitsContext&& tuc)
+		: active_tex_unit(std::move(tuc.active_tex_unit))
+	{
+		tuc.active_tex_unit.reset();
+	}
+	
+	TexturesUnitsContext& operator=(const TexturesUnitsContext&) = default;
+	THR_FORCEINLINE TexturesUnitsContext& operator=(TexturesUnitsContext&& tuc)
+	{
+		active_tex_unit = std::move(tuc.active_tex_unit);
+		tuc.active_tex_unit.reset();
+		return *this;
+	}
+
+	void useTextureUnit(GLenum tex)
+	{
+		const size_t idx = getGlActiveTexIndex(tex);
+		active_tex_unit.set(idx, true);
+	}	
+
+	void dropTextureUnit(GLenum tex) 
+	{
+		const size_t idx = getGlActiveTexIndex(tex);
+		active_tex_unit.set(idx, false);
+	}
+
+	bool getTextureUnit(GLenum& tex)
+	{
+		for (size_t i = 0; i < ActiveTexturesLimit; i++) {
+			if (!active_tex_unit.test(i)) {
+				tex = GL_TEXTURE0 + i;
+				useTextureUnit(tex);
+				return true;
+			}
+		}
+
+		tex = GL_INVALID_ENUM;
+		return false;
+	}
+
+	static constexpr size_t ActiveTexturesLimit = 16;
+	std::bitset<ActiveTexturesLimit> active_tex_unit;
+};
+
+THR_INLINE int getGlActiveTexIndex(GLenum tex) 
+{
+	THR_ASSERT(tex >= GL_TEXTURE0 && 
+			   tex <= GL_TEXTURE0 + TexturesUnitsContext::ActiveTexturesLimit);
 	return tex - GL_TEXTURE0;
 }
 

@@ -24,8 +24,9 @@ TextRender::TextRender()
 {}
 
 void TextRender::init(const RenderFormat& fmt, 
-					  std::shared_ptr<FontAtlas>& atlas,
-					  std::shared_ptr<Font>& font)
+					  std::shared_ptr<DoubleAtlas>& datlas,
+					  std::shared_ptr<Font>& regular_font,
+					  std::shared_ptr<Font>& colored_font)
 {
 	if (_initialized) {
 		THR_LOG_ERROR("TextRender subsystem is already initialized, can't initialize again");
@@ -49,9 +50,8 @@ void TextRender::init(const RenderFormat& fmt,
 	glBindVertexArray(*_vao_id_ptr);
 	THR_HARD_ASSERT(*_vao_id_ptr != 0 && glIsVertexArray(*_vao_id_ptr) == GL_TRUE);
 		
-	_atlas = atlas;
-	_font = font;
-	_atlas->init(_font);
+	_datlas = datlas;
+	_datlas->init(regular_font, colored_font);
 		
 	glGenBuffers(1, std::addressof(_base_vbo_id));
 	glBindBuffer(GL_ARRAY_BUFFER, _base_vbo_id);
@@ -134,7 +134,7 @@ void TextRender::init(const RenderFormat& fmt,
 
 	/* Setup uniforms for textures and tex-buffers */
 	{
-		if (!_atlas->isReady()) {
+		if (!_datlas->isReady()) {
 			THR_LOG_ERROR("Atlas is not initialized");
 			return;
 		}
@@ -147,13 +147,16 @@ void TextRender::init(const RenderFormat& fmt,
 		_shader->prog.setUniform2<GLuint>("ScreenResPix", window_size.x, window_size.y);
 		_shader->prog.setUniform2<GLuint>("CellSizePix",  cell_size.x, cell_size.y);
 
-		const GLint uvs_buf_unit = getGlActiveTexUniformVal(_atlas->getAtlasTexBufUnit());
+		const GLint uvs_buf_unit = getGlActiveTexIndex(
+			_datlas->getAtlasTexBufUnit<DoubleAtlas::GetRegularAtlas>());
 		_shader->prog.setUniform1<GLint>("AtlasUVsLookup", uvs_buf_unit);
 
-		const GLint format_buf_unit = getGlActiveTexUniformVal(_atlas->getCharFormatBufUnit());
+		const GLint format_buf_unit = getGlActiveTexIndex(
+			_datlas->getCharFormatBufUnit<DoubleAtlas::GetRegularAtlas>());
 		_shader->prog.setUniform1<GLint>("CharFormatLookup", format_buf_unit);
 
-		const GLint atlas_tex_unit = getGlActiveTexUniformVal(_atlas->getAtlasTexUnit());
+		const GLint atlas_tex_unit = getGlActiveTexIndex(
+			_datlas->getAtlasTexUnit<DoubleAtlas::GetRegularAtlas>());
 		_shader->prog.setUniform1<GLint>("AtlasTexture", atlas_tex_unit);
 
 		_shader->prog.unuseProgram();
@@ -224,14 +227,14 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 			if (!it->cluster.isEmpty()) {
 				for (char32_t codepoint : it->cluster.codepoints) {
 					GlyphInfo info;
-					uint32_t id = _atlas->getGlyphInfo(codepoint, info);
+					uint32_t id = _datlas->getGlyphInfo(codepoint, info);
 
 					if (id == static_cast<uint32_t>(-1)) {
 						glBindVertexArray(*_vao_id_ptr);
-						_atlas->addGlyph(codepoint);
+						_datlas->addGlyph(codepoint);
 						glBindVertexArray(0);
 						
-						id = _atlas->getGlyphInfo(codepoint, info);
+						id = _datlas->getGlyphInfo(codepoint, info);
 					}
 
 					THR_ASSERT(info.id == id);
@@ -280,13 +283,13 @@ void TextRender::renderText() const
 	}
 
 	glBindVertexArray(*_vao_id_ptr);
-	_atlas->bindAtlas();
+	_datlas->bindAtlases();
 	_shader->prog.useProgram();
 
 	glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(_cell_count));
 
 	_shader->prog.unuseProgram();
-	_atlas->unbindAtlas();
+	_datlas->unbindAtlases();
 	glBindVertexArray(0);
 
 	pollGlErrors([](GLenum err) {

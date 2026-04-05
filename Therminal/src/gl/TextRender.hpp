@@ -27,8 +27,9 @@ public:
 	TextRender(TextRender&&) = delete;
 
 	void init(const RenderFormat& fmt, 
-			  std::shared_ptr<FontAtlas>& atlas, 
-			  std::shared_ptr<Font>& font);
+			  std::shared_ptr<DoubleAtlas>& datlas, 
+			  std::shared_ptr<Font>& regular_font,
+			  std::shared_ptr<Font>& colored_font);
 
 	void getRenderFormat(RenderFormat& fmt);
 		
@@ -57,8 +58,7 @@ private:
 	std::unique_ptr<ShaderProgram> _shader;
 	size_t						   _cell_count;
 	bool						   _initialized;
-	std::shared_ptr<FontAtlas> 	   _atlas;
-	std::shared_ptr<Font>		   _font;
+	std::shared_ptr<DoubleAtlas>   _datlas;
 };
 
 } // namespace Thr

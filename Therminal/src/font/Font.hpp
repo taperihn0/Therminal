@@ -19,7 +19,7 @@ public:
     Font& operator=(const Font&) = default;
     Font& operator=(Font&& f);
 
-    void init(const FilePath& font_path, int glyph_height);
+    void init(const FilePath& font_path, int req_glyph_height);
     void markScale(float on_scr_scale);
     float getScale() const;
 
@@ -44,9 +44,14 @@ public:
     bool getGlyphMetrics(Metrics& metrics) const;
 
     bool isReady() const;
+    bool isColoredFont() const;
 private:
+    bool selectHeight(int req_glyph_height);
+
 	FT_Library  _ft_lib    = nullptr;
 	FT_Face	    _ft_face   = nullptr;
+    FT_Render_Mode _ft_render = FT_RENDER_MODE_NORMAL;
+    FT_Int32    _ft_load_flags = 0;
     bool        _initialized = false;
     float       _on_scr_scale = std::nanf("1");
 };

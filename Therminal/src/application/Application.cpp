@@ -110,8 +110,9 @@ Application::Application(int argc, char* argv[])
 			RenderFormat::DefaultCellCountY,
 			RenderFormat::DefaultCellCountX
 		)
-	, _font(std::make_shared<Font>())
-	, _atlas(std::make_shared<FontAtlas>(1024, 1024))
+	, _regular_font(std::make_shared<Font>())
+	, _colored_font(std::make_shared<Font>())
+	, _datlas(std::make_shared<DoubleAtlas>(1024, 1024))
 	, _io_bridge(std::make_shared<IOBridge>(512, 4096))
 {
    init();
@@ -160,10 +161,11 @@ void Application::init()
 		}
 	}
 
-	_font->init(FilePath("Therminal/assets/fonts/DejaVuSansMono.ttf"), _FontBitmapHeightPix);
+	_regular_font->init(FilePath("Therminal/assets/fonts/DejaVuSansMono.ttf"), _FontBitmapHeightPix);
+	//_colored_font->init(FilePath("Therminal/assets/fonts/NotoColorEmoji.ttf"), _FontBitmapHeightPix);
 
 	Font::Metrics font_metrics;
-	const bool success = _font->getGlyphMetrics(font_metrics);
+	const bool success = _regular_font->getGlyphMetrics(font_metrics);
 
 	if (!success) {
 		THR_LOG_FATAL("Failed to get glyph metrics");
@@ -171,7 +173,7 @@ void Application::init()
 	}
 
 	const float font_scale = static_cast<float>(_CellHeightPix) / _FontBitmapHeightPix;
-	_font->markScale(font_scale);
+	_regular_font->markScale(font_scale);
 
 	const glm::i32vec2 font_size_pix{font_scale * font_metrics.max_advance_pix, 
 								     font_scale * font_metrics.height_pix};
@@ -214,7 +216,7 @@ void Application::init()
 	/* Setup render format and finally create renderer buffers */
 	_render_fmt.setWindowSize(glm::ivec2(_window->getWidth(), _window->getHeight()));
 
-	_text_render.init(_render_fmt, _atlas, _font);
+	_text_render.init(_render_fmt, _datlas, _regular_font, _colored_font);
 
 	/* Get true text render format. */
 	_text_render.getRenderFormat(_render_fmt);

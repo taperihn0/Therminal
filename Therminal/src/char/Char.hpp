@@ -19,6 +19,7 @@ struct Char
 	THR_INLINE bool isPrintable() const;
 	THR_INLINE bool isControl0() const;
 	THR_INLINE bool isControl1() const;
+	THR_INLINE bool isEmoji() const;
 
 	THR_INLINE Char<T>& operator=(Char<T> c);
 	THR_INLINE bool     operator==(Char<T> c) const;
@@ -33,8 +34,8 @@ struct Char
 	T codepoint;
 };
 
-using Char8 = Char<char8_t>;
-using Char16 = Char<char16_t>;
+using _Char8 = Char<char8_t>;  
+using _Char16 = Char<char16_t>;
 using Char32 = Char<char32_t>;
 
 } // namespace Thr
