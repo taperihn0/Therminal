@@ -17,8 +17,8 @@ uniform isamplerBuffer CharFormatLookup;
 void main() 
 {
 	ivec4 format = texelFetch(CharFormatLookup, int(aId));
-	ivec2 char_size = format.xy;
-	ivec2 char_bearing = format.zw;
+	ivec2 char_size = format.xy / 2;
+	ivec2 char_bearing = format.zw / 2;
 
 	vec2 pix_pos = char_size * aUnitVert + aPos + vec2(char_bearing.x, int(CellSizePix.y) - char_bearing.y);
 	vec2 norm_pos = vec2(1., -1.) * (2. * pix_pos - ScreenResPix) / ScreenResPix;

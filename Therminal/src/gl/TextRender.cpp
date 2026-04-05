@@ -48,7 +48,7 @@ void TextRender::init(const RenderFormat& fmt,
 
 	glBindVertexArray(*_vao_id_ptr);
 	THR_HARD_ASSERT(*_vao_id_ptr != 0 && glIsVertexArray(*_vao_id_ptr) == GL_TRUE);
-
+		
 	_atlas = atlas;
 	_font = font;
 	_atlas->init(_font);
@@ -235,7 +235,6 @@ void TextRender::submitCurrFrame(const RenderFramePacket& packet)
 					}
 
 					THR_ASSERT(info.id == id);
-					THR_ASSERT(info.advance == static_cast<int>(cell_size.x));
 
 					buffer.push_back(ShaderCellInfo{
 						glm::u32vec2{ xpos, ypos },

@@ -60,6 +60,9 @@ private:
 	std::shared_ptr<FontAtlas> _atlas;
 	std::shared_ptr<IOBridge>  _io_bridge;
 	static IOAppClient		   _client;
+
+	static constexpr int 	   _FontBitmapHeightPix = 40;
+	static constexpr int 	   _CellHeightPix = 20;
 };
 
 } // namespace Thr

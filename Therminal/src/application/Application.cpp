@@ -97,8 +97,6 @@ void Application::winMouseScrollCallback(MouseScrollEvent ev)
 	markUnused(ev);
 }
 
-static constexpr int ReqFontPixHeight = 20;
-
 Application::Application(int argc, char* argv[]) 
 	: _cwd(FilePath::getCurrentDirectory()) 
 	, _window(std::make_unique<Window>())
@@ -107,13 +105,13 @@ Application::Application(int argc, char* argv[])
 	, _scrollback(std::make_shared<ScrollbackBuffer>())
 	, _grid(nullptr)
 	, _render_fmt(
-			RenderFormat::DeafultPaddingPixX,
-			RenderFormat::DeafultPaddingPixY, 
+			RenderFormat::DefaultPaddingPixX,
+			RenderFormat::DefaultPaddingPixY, 
 			RenderFormat::DefaultCellCountY,
 			RenderFormat::DefaultCellCountX
 		)
 	, _font(std::make_shared<Font>())
-	, _atlas(std::make_shared<FontAtlas>())
+	, _atlas(std::make_shared<FontAtlas>(1024, 1024))
 	, _io_bridge(std::make_shared<IOBridge>(512, 4096))
 {
    init();
@@ -162,17 +160,27 @@ void Application::init()
 		}
 	}
 
-	_font->init(FilePath("Therminal/assets/fonts/DejaVuSansMono.ttf"), ReqFontPixHeight);
+	_font->init(FilePath("Therminal/assets/fonts/DejaVuSansMono.ttf"), _FontBitmapHeightPix);
 
-	const FT_Size_Metrics font_metrics = _font->getGlyphMetrics();
-	const glm::ivec2 font_size_pix = {font_metrics.max_advance >> 6, font_metrics.height >> 6};
+	Font::Metrics font_metrics;
+	const bool success = _font->getGlyphMetrics(font_metrics);
+
+	if (!success) {
+		THR_LOG_FATAL("Failed to get glyph metrics");
+		return;
+	}
+
+	const float font_scale = static_cast<float>(_CellHeightPix) / _FontBitmapHeightPix;
+	_font->markScale(font_scale);
+
+	const glm::i32vec2 font_size_pix{font_scale * font_metrics.max_advance_pix, 
+								     font_scale * font_metrics.height_pix};
 
 	_render_fmt.setCellSize(font_size_pix);
 
 	// Note, that we need to include lower margin of a font for the last row, 
 	// so we don't see any font cutting on lower edge of the screen
-	const int ascent_pix = font_metrics.ascender >> 6;
-	const int y_margin = font_size_pix.y - ascent_pix;
+	const int y_margin = font_size_pix.y - font_scale * font_metrics.ascender_pix;
 
 	/* Setup window size and initialize glfw window */
 	const uint window_width  = font_size_pix.x * _render_fmt.getCellCount().x;
@@ -222,13 +230,6 @@ void Application::getPrimaryMonitorRes(int& width, int& height)
 {
 	width = -1;
 	height = -1;
-
-	if (!glfwIsInitialized()) {
-		if (glfwInit() == GLFW_FALSE) {
-			THR_LOG_FATAL_FRAME_INFO("Failed to initialize GLFW context!");
-			return;
-		}
-	}
 
 	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	THR_HARD_ASSERT_LOG(monitor != nullptr, "Failed to fetch primary monitor");

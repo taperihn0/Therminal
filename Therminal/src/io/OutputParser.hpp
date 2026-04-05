@@ -23,6 +23,37 @@ private:
 	void processGraphemeCluster(GraphemeCluster& cluster);
 	void processCSICommand(char32_t ch);
 	void processOSCommand();
+
+	/* CSI sequence handlers */
+	void cursorUpCSI();
+	void cursorDownCSI();
+	void cursorForwardCSI();
+	void cursorBackCSI();
+	void cursorNextLineCSI();
+	void cursorPrevLineCSI();
+	void cursorHorizontalAbsCSI();
+	void cursorPosCSI();
+	void cursorTabControlCSI();
+	void eraseInDisplayCSI();
+	void eraseInLineCSI();
+	void eraseCharsCSI();
+	void insertLineCSI();
+	void deleteLineCSI();
+	void deleteCharsCSI();
+	void scrollUpCSI();
+	void scrollDownCSI();
+	void insertCharsCSI();
+	void selGraphicsRenditionCSI();
+	void horizontalVertPosCSI();
+	void tabClearCSI();
+	void setModeCSI();
+	void resetModeCSI();
+	void decSetModeCSI();
+	void decResetModeCSI();
+	void deviceStatusReportCSI();
+	void deviceAttributesCSI();
+	void softTerminalResetCSI();
+	void setScrollRegionCSI();
 	
 	enum class enumParseState
 	{

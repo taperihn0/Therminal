@@ -79,7 +79,7 @@ void OutputParser::processGraphemeCluster(GraphemeCluster& cluster)
 		return;
 	}
 	
-	const char32_t fch = cluster.codepoints[0];
+	const Char32 fch = Char32(cluster.codepoints[0]);
 
 	bool handle;
 
@@ -93,11 +93,11 @@ void OutputParser::processGraphemeCluster(GraphemeCluster& cluster)
 				break;
 			}
 			else if (codepoint_cnt == 1 &&
-					Char32(fch).isControl0()) {
+					fch.isControl0()) {
 				// TODO: handle c0 codes here
 			}
 			else if (codepoint_cnt == 1 &&
-					Char32(fch).isControl1()) {
+					fch.isControl1()) {
 				_parse_state = stateFromC1Char(fch);
 				break;
 			}
@@ -204,98 +204,16 @@ void OutputParser::processCSICommand(char32_t ch)
 {
 	switch (ch) {
 	case 'm': { /* Select Graphic Rendition	*/
-		// TODO
+		selGraphicsRenditionCSI();
 		break;
 	}
 	case 'J': { /* Erase in Display */
-		const size_t intermediate_cnt = _control_buf.size();
-		int n = 0;
-
-		if (intermediate_cnt > 1) {
-			THR_LOG_ERROR("Got multiple intermediate bytes, ignoring");
-			break;
-		}
-		else if (!intermediate_cnt) {
-			n = 0;
-		}
-		else {
-			const char32_t fch = _control_buf.front();
-
-			if (fch > 127 || !std::iswdigit(static_cast<std::wint_t>(fch))) {
-				THR_LOG_ERROR("Invalid intermediate number n, ignoring");
-				break;
-			}
-
-			n = static_cast<int>(fch - U'0');
-		}
-
-		switch (n) {
-		case 0: {
-			_grid->eraseRightFromCursor();
-			break;
-		}
-		case 1: {
-			_grid->eraseLeftFromCursor();
-			break;
-		}
-		case 2: {
-			_grid->eraseAll();
-			_grid->setCursorPos(glm::u64vec2{0, 0});
-			break;
-		}
-		case 3: {
-			_grid->eraseAll();
-			_grid->clearScrollbackBuffer();
-			break;
-		}
-		default: {
-			THR_LOG_ERROR("Invalid intermediate number n, ignoring");
-			break;
-		}
-		}
-
+		eraseInDisplayCSI();
 		break;
 	}
 	case 'K': { /* Erase in Line */
-		const size_t intermediate_cnt = _control_buf.size();
-		int n = 0;
-
-		if (intermediate_cnt > 1) {
-			THR_LOG_ERROR("Got multiple intermediate bytes, ignoring");
-			break;
-		}
-		else if (!intermediate_cnt) {
-			n = 0;
-		}
-		else {
-			const char32_t fch = _control_buf.front();
-
-			if (fch > 127 || !std::iswdigit(static_cast<std::wint_t>(fch))) {
-				THR_LOG_ERROR("Invalid intermediate number n, ignoring");
-				break;
-			}
-
-			n = static_cast<int>(fch - U'0');
-		}
-
-		switch (n) {
-		case 0: {
-			_grid->eraseRightLineFromCursor();
-			break;
-		}
-		case 1: {
-			_grid->eraseLeftLineFromCursor();
-			break;
-		}
-		case 2: {
-			_grid->eraseAllLine();
-			break;
-		}
-		default: {
-			THR_LOG_ERROR("Invalid intermediate number n, ignoring");
-			break;
-		}
-		}
+		eraseInLineCSI();
+		break;
 	}
 	default: 
 		break;
@@ -306,5 +224,127 @@ void OutputParser::processOSCommand()
 {
 	// TODO
 }
+
+// TODO
+void OutputParser::cursorUpCSI() {}
+void OutputParser::cursorDownCSI() {}
+void OutputParser::cursorForwardCSI() {}
+void OutputParser::cursorBackCSI() {}
+void OutputParser::cursorNextLineCSI() {}
+void OutputParser::cursorPrevLineCSI() {}
+void OutputParser::cursorHorizontalAbsCSI() {}
+void OutputParser::cursorPosCSI() {}
+void OutputParser::cursorTabControlCSI() {}
+
+void OutputParser::eraseInDisplayCSI() 
+{
+	const size_t intermediate_cnt = _control_buf.size();
+	int n = 0;
+
+	if (intermediate_cnt > 1) {
+		THR_LOG_ERROR("Got multiple intermediate bytes, ignoring");
+		return;
+	}
+	else if (!intermediate_cnt) {
+		n = 0;
+	}
+	else {
+		const char32_t fch = _control_buf.front();
+
+		if (fch > 127 || !std::iswdigit(static_cast<std::wint_t>(fch))) {
+			THR_LOG_ERROR("Invalid intermediate number n, ignoring");
+			return;
+		}
+
+		n = static_cast<int>(fch - U'0');
+	}
+
+	switch (n) {
+	case 0: {
+		_grid->eraseRightFromCursor();
+		break;
+	}
+	case 1: {
+		_grid->eraseLeftFromCursor();
+		break;
+	}
+	case 2: {
+		_grid->eraseAll();
+		_grid->setCursorPos(glm::u64vec2{0, 0});
+		break;
+	}
+	case 3: {
+		_grid->eraseAll();
+		_grid->clearScrollbackBuffer();
+		break;
+	}
+	default: {
+		THR_LOG_ERROR("Invalid intermediate number n, ignoring");
+		break;
+	}
+	}
+}
+
+void OutputParser::eraseInLineCSI() 
+{
+	const size_t intermediate_cnt = _control_buf.size();
+	int n = 0;
+
+	if (intermediate_cnt > 1) {
+		THR_LOG_ERROR("Got multiple intermediate bytes, ignoring");
+		return;
+	}
+	else if (!intermediate_cnt) {
+		n = 0;
+	}
+	else {
+		const char32_t fch = _control_buf.front();
+
+		if (fch > 127 || !std::iswdigit(static_cast<std::wint_t>(fch))) {
+			THR_LOG_ERROR("Invalid intermediate number n, ignoring");
+			return;
+		}
+
+		n = static_cast<int>(fch - U'0');
+	}
+
+	switch (n) {
+	case 0: {
+		_grid->eraseRightLineFromCursor();
+		break;
+	}
+	case 1: {
+		_grid->eraseLeftLineFromCursor();
+		break;
+	}
+	case 2: {
+		_grid->eraseAllLine();
+		break;
+	}
+	default: {
+		THR_LOG_ERROR("Invalid intermediate number n, ignoring");
+		break;
+	}
+	}
+}
+
+void OutputParser::eraseCharsCSI() {}
+void OutputParser::insertLineCSI() {}
+void OutputParser::deleteLineCSI() {}
+void OutputParser::deleteCharsCSI() {}
+void OutputParser::scrollUpCSI() {}
+void OutputParser::scrollDownCSI() {}
+void OutputParser::insertCharsCSI() {}
+void OutputParser::selGraphicsRenditionCSI() {}
+void OutputParser::horizontalVertPosCSI() {}
+void OutputParser::tabClearCSI() {}
+void OutputParser::setModeCSI() {}
+void OutputParser::resetModeCSI() {}
+void OutputParser::decSetModeCSI() {}
+void OutputParser::decResetModeCSI() {}
+void OutputParser::deviceStatusReportCSI() {}
+void OutputParser::deviceAttributesCSI() {}
+void OutputParser::softTerminalResetCSI() {}
+void OutputParser::setScrollRegionCSI() {}
 
 } // namespace Thr

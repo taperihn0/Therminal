@@ -13,7 +13,7 @@ struct Char
 					   is_same_v<T, char32_t>));
 
 	Char() = default;
-	THR_INLINE Char(T codepoint);
+	THR_INLINE explicit Char(T codepoint);
 
 	THR_INLINE int getWidth() const;
 	THR_INLINE bool isPrintable() const;

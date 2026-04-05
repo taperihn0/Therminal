@@ -31,8 +31,8 @@ public:
 	glm::ivec2 getCellCount() const;
 
 	static inline constexpr int DefaultFontHeightPix = 20;
-	static inline constexpr int DeafultPaddingPixX = 0;
-	static inline constexpr int DeafultPaddingPixY = 0;
+	static inline constexpr int DefaultPaddingPixX = 0;
+	static inline constexpr int DefaultPaddingPixY = 0;
 	static inline constexpr int DefaultCellCountX = 80;
 	static inline constexpr int DefaultCellCountY = 24;
 private:

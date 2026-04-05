@@ -110,24 +110,35 @@ void FontAtlas::addGlyph(char32_t codepoint)
 	if (_glyph_map.count(codepoint))
 		return;
 
-	const FT_GlyphSlot g = _font->getGlyphOf(codepoint);
+	Font::Glyph g;
 
-	if (!g) {
-		THR_LOG_ERROR("Failed to load glyph with codepoint {}", codepoint);
-		return;
+	{
+		const bool success = _font->getGlyphOf(codepoint, g);
+
+		if (!success) {
+			THR_LOG_FATAL("Failed to load glyph with codepoint {}", codepoint);
+			return;
+		}
 	}
 
-	if (_atlas_y_offset + g->bitmap.rows >= _atlas_height) {
+	if (_atlas_y_offset + g.ft_bitmap.rows >= _atlas_height) {
 		THR_LOG_ERROR("Font atlas is full, cannot add more glyphs");
 		return;
 	}
 
-	const FT_Size_Metrics glyph_metrics = _font->getGlyphMetrics();
-	const glm::uvec2 glyph_pix_size = {glyph_metrics.max_advance >> 6, glyph_metrics.height >> 6};
+	{
+		Font::Metrics glyph_metrics;
+		const bool success = _font->getGlyphMetrics(glyph_metrics);
 
-	if (_atlas_x_offset + g->bitmap.width >= _atlas_width) {
-		_atlas_x_offset = 0;
-		_atlas_y_offset += glyph_pix_size.y + 1;
+		if (!success) {
+			THR_LOG_FATAL("Failed to get glyph metrics");
+			return;
+		}
+
+		if (_atlas_x_offset + g.ft_bitmap.width >= _atlas_width) {
+			_atlas_x_offset = 0;
+			_atlas_y_offset += glyph_metrics.height_pix + 1;
+		}
 	}
 
 	THR_HARD_ASSERT(_atlas_tex_id != 0 && glIsTexture(_atlas_tex_id) == GL_TRUE);
@@ -140,19 +151,19 @@ void FontAtlas::addGlyph(char32_t codepoint)
 					0, 
 					_atlas_x_offset, 
 					_atlas_y_offset,
-					g->bitmap.width, 
-					g->bitmap.rows, 
+					g.ft_bitmap.width, 
+					g.ft_bitmap.rows, 
 					GL_RED, 
 					GL_UNSIGNED_BYTE,
-					reinterpret_cast<const GLvoid*>(g->bitmap.buffer));
+					reinterpret_cast<const GLvoid*>(g.ft_bitmap.buffer));
 
 	/* Update UVs texture buffer */
 
 	const GlyphTextureUVs glyph_uv(
 		static_cast<float32_t>(_atlas_x_offset) / _atlas_width,
 		static_cast<float32_t>(_atlas_y_offset) / _atlas_height,
-		static_cast<float32_t>(_atlas_x_offset + g->bitmap.width) / _atlas_width,
-		static_cast<float32_t>(_atlas_y_offset + g->bitmap.rows) / _atlas_height
+		static_cast<float32_t>(_atlas_x_offset + g.ft_bitmap.width) / _atlas_width,
+		static_cast<float32_t>(_atlas_y_offset + g.ft_bitmap.rows) / _atlas_height
 	);
 
 	glBindBuffer(GL_TEXTURE_BUFFER, _tb_buf_uvs_id);
@@ -167,10 +178,10 @@ void FontAtlas::addGlyph(char32_t codepoint)
 	/* Update Character Format texture buffer */
 
 	const GlyphFormatData glyph_format(
-		static_cast<int>(g->bitmap.width), 
-		static_cast<int>(g->bitmap.rows), 
-		g->bitmap_left,
-		g->bitmap_top
+		static_cast<int>(g.ft_bitmap.width), 
+		static_cast<int>(g.ft_bitmap.rows), 
+		g.bearing_x_pix,
+		g.bearing_y_pix
 	);
 
 	glBindBuffer(GL_TEXTURE_BUFFER, _tb_buf_form_id);
@@ -179,17 +190,17 @@ void FontAtlas::addGlyph(char32_t codepoint)
 					sizeof(GlyphFormatData), 
 					reinterpret_cast<const GLvoid*>(std::addressof(glyph_format)));	
 
-	const GlyphInfo glyph_info = {
-		static_cast<int>(g->bitmap.width), 
-		static_cast<int>(g->bitmap.rows), 
-		g->bitmap_left,
-		g->bitmap_top,
-		static_cast<int>(g->advance.x >> 6),
+	const GlyphInfo glyph_info {
+		static_cast<int>(g.ft_bitmap.width), 
+		static_cast<int>(g.ft_bitmap.rows), 
+		g.bearing_x_pix,
+		g.bearing_y_pix,
+		g.advance_pix.x,
 		_glyph_id++
 	};
 
 	_glyph_map[codepoint] = glyph_info;
-	_atlas_x_offset += g->bitmap.width + 1;
+	_atlas_x_offset += g.ft_bitmap.width + 1;
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -305,11 +316,18 @@ void FontAtlas::init(std::shared_ptr<Font>& font)
 		return;
 	}
 
-	const FT_Size_Metrics glyph_metrics = _font->getGlyphMetrics();
-	const glm::uvec2 glyph_pix_size = {glyph_metrics.max_advance >> 6, glyph_metrics.height >> 6};
+	{
+		Font::Metrics glyph_metrics;
+		const bool success = _font->getGlyphMetrics(glyph_metrics);
 
-	_glyph_per_tb = static_cast<uint>(_atlas_width / glyph_pix_size.x) *
-					static_cast<uint>(_atlas_height / glyph_pix_size.y);
+		if (!success) {
+			THR_LOG_FATAL("Failed to get glyph metrics");
+			return;
+		}
+
+		_glyph_per_tb = static_cast<uint>(_atlas_width / glyph_metrics.max_advance_pix) *
+						static_cast<uint>(_atlas_height / glyph_metrics.height_pix);
+	}
 
 	GLint vao_bound = 0;
 	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, std::addressof(vao_bound));
@@ -326,7 +344,7 @@ void FontAtlas::init(std::shared_ptr<Font>& font)
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_R8, _atlas_width, _atlas_height);
